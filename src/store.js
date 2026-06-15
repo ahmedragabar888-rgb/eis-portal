@@ -205,6 +205,7 @@ export function assembleData(meta, studentsMap, galleryArr) {
 
   return {
     settings: meta?.settings || { whatsappNumber: "" },
+    classes: meta?.classes || [],
     announcements: meta?.announcements || [],
     schedule: meta?.schedule || {},
     users: meta?.users || { admin: {}, parents: [] },
@@ -253,8 +254,8 @@ export async function persistChanges(prev, next) {
   if (!db) return;
   const ops = [];
 
-  // ---- meta (settings / users / announcements / schedule) ----
-  const metaKeys = ["settings", "users", "announcements", "schedule"];
+  // ---- meta (settings / users / announcements / schedule / classes) ----
+  const metaKeys = ["settings", "users", "announcements", "schedule", "classes"];
   const metaUpdate = {};
   let metaChanged = false;
   for (const k of metaKeys) {
@@ -346,4 +347,3 @@ export async function deleteStorageFile(path) {
   // 25GB free tier) and can be deleted manually there if needed.
   if (path) console.info("Cloudinary asset kept in Media Library:", path);
 }
-
