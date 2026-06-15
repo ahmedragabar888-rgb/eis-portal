@@ -24,7 +24,7 @@ const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 // ---------------------------------------------------------------------
-// Default / seed data — written once when the database is empty so the
+// Default / seed data â written once when the database is empty so the
 // platform has a working admin account and two sample students.
 // ---------------------------------------------------------------------
 
@@ -32,86 +32,89 @@ const DEFAULT_META = {
   settings: {
     whatsappNumber: "",
   },
+  classes: [],
   users: {
-    admin: { username: "admin", password: "Admin@2026", role: "admin", name: "إدارة المدرسة" },
+    admin: { username: "admin", password: "Admin@2026", role: "admin", name: "Ø¥Ø¯Ø§Ø±Ø© Ø§ÙÙØ¯Ø±Ø³Ø©" },
     parents: [
       { username: "0501234567", password: "Elite123", role: "parent", studentId: "std_001" },
       { username: "0559876543", password: "Nokhba2026", role: "parent", studentId: "std_002" },
     ],
   },
   announcements: [
-    { id: "a_1", type: "orange", title: "إعلان من المدرسة", desc: "رحلة مدرسية يوم الأحد القادم" },
+    { id: "a_1", type: "orange", title: "Ø¥Ø¹ÙØ§Ù ÙÙ Ø§ÙÙØ¯Ø±Ø³Ø©", desc: "Ø±Ø­ÙØ© ÙØ¯Ø±Ø³ÙØ© ÙÙÙ Ø§ÙØ£Ø­Ø¯ Ø§ÙÙØ§Ø¯Ù" },
   ],
   schedule: {
-    "الأحد": ["English", "Math", "Art", "Quran", "Arabic", "Science"],
-    "الاثنين": ["Arabic", "Science", "PE", "English", "Math", "Music"],
-    "الثلاثاء": ["Math", "English", "Quran", "Art", "Science", "Arabic"],
-    "الأربعاء": ["Science", "Arabic", "Math", "PE", "English", "Art"],
-    "الخميس": ["Quran", "Art", "English", "Science", "Math", "Circle Time"],
+    "Ø§ÙØ£Ø­Ø¯": ["English", "Math", "Art", "Quran", "Arabic", "Science"],
+    "Ø§ÙØ§Ø«ÙÙÙ": ["Arabic", "Science", "PE", "English", "Math", "Music"],
+    "Ø§ÙØ«ÙØ§Ø«Ø§Ø¡": ["Math", "English", "Quran", "Art", "Science", "Arabic"],
+    "Ø§ÙØ£Ø±Ø¨Ø¹Ø§Ø¡": ["Science", "Arabic", "Math", "PE", "English", "Art"],
+    "Ø§ÙØ®ÙÙØ³": ["Quran", "Art", "English", "Science", "Math", "Circle Time"],
   },
 };
 
 const DEFAULT_STUDENTS = {
   std_001: {
     profile: {
-      name: "بلال أحمد", grade: "KG1 — فصل 1", nationalId: "1xxxxxxxxx",
-      birthDate: "12 / 03 / 2021", bloodType: "O+", contact: "0501234567", avatar: "ب",
+      name: "Ø¨ÙØ§Ù Ø£Ø­ÙØ¯", grade: "KG1 â ÙØµÙ 1", nationalId: "1xxxxxxxxx",
+      birthDate: "12 / 03 / 2021", bloodType: "O+", contact: "0501234567", avatar: "Ø¨",
+      classId: null, status: "active", withdrawalReason: "", withdrawalDate: "",
     },
     homework: [
-      { id: "hw_1", subject: "اللغة الإنجليزية", title: "Letter A Worksheet", due: "الخميس", status: "جديد", fileUrl: "", videoUrl: "" },
-      { id: "hw_2", subject: "الرياضيات", title: "تمارين العد من 1 إلى 10", due: "الأحد", status: "جديد", fileUrl: "", videoUrl: "" },
+      { id: "hw_1", subject: "Ø§ÙÙØºØ© Ø§ÙØ¥ÙØ¬ÙÙØ²ÙØ©", title: "Letter A Worksheet", due: "Ø§ÙØ®ÙÙØ³", status: "Ø¬Ø¯ÙØ¯", fileUrl: "", videoUrl: "" },
+      { id: "hw_2", subject: "Ø§ÙØ±ÙØ§Ø¶ÙØ§Øª", title: "ØªÙØ§Ø±ÙÙ Ø§ÙØ¹Ø¯ ÙÙ 1 Ø¥ÙÙ 10", due: "Ø§ÙØ£Ø­Ø¯", status: "Ø¬Ø¯ÙØ¯", fileUrl: "", videoUrl: "" },
     ],
     onlineClasses: [
-      { id: "oc_1", subject: "اللغة الإنجليزية", time: "10:00 ص - 10:30 ص", link: "https://meet.google.com/", live: true },
-      { id: "oc_2", subject: "الرياضيات", time: "11:00 ص - 11:30 ص", link: "https://meet.google.com/", live: false },
+      { id: "oc_1", subject: "Ø§ÙÙØºØ© Ø§ÙØ¥ÙØ¬ÙÙØ²ÙØ©", time: "10:00 Øµ - 10:30 Øµ", link: "https://meet.google.com/", live: true },
+      { id: "oc_2", subject: "Ø§ÙØ±ÙØ§Ø¶ÙØ§Øª", time: "11:00 Øµ - 11:30 Øµ", link: "https://meet.google.com/", live: false },
     ],
     attendance: {
-      "2026-06-07": "حاضر", "2026-06-08": "حاضر", "2026-06-09": "غائب",
-      "2026-06-10": "حاضر", "2026-06-11": "حاضر",
+      "2026-06-07": "Ø­Ø§Ø¶Ø±", "2026-06-08": "Ø­Ø§Ø¶Ø±", "2026-06-09": "ØºØ§Ø¦Ø¨",
+      "2026-06-10": "Ø­Ø§Ø¶Ø±", "2026-06-11": "Ø­Ø§Ø¶Ø±",
     },
     dailyReports: [
-      { date: "2026-06-07", behavior: 5, participation: 4, focus: 4, activities: 5, notes: "اليوم شارك بلال بشكل ممتاز في نشاط الألوان وأظهر تفاعلًا جيدًا مع زملائه." },
+      { date: "2026-06-07", behavior: 5, participation: 4, focus: 4, activities: 5, notes: "Ø§ÙÙÙÙ Ø´Ø§Ø±Ù Ø¨ÙØ§Ù Ø¨Ø´ÙÙ ÙÙØªØ§Ø² ÙÙ ÙØ´Ø§Ø· Ø§ÙØ£ÙÙØ§Ù ÙØ£Ø¸ÙØ± ØªÙØ§Ø¹ÙÙØ§ Ø¬ÙØ¯ÙØ§ ÙØ¹ Ø²ÙÙØ§Ø¦Ù." },
     ],
     grades: { English: 85, Math: 90, Arabic: 88, Science: 92 },
     exams: [
-      { subject: "اللغة الإنجليزية", date: "15 يونيو", grade: "18/20", note: "أداء ممتاز ومشاركة فعالة" },
-      { subject: "الرياضيات", date: "18 يونيو", grade: "19/20", note: "إتقان كامل لمهارات العد" },
+      { subject: "Ø§ÙÙØºØ© Ø§ÙØ¥ÙØ¬ÙÙØ²ÙØ©", date: "15 ÙÙÙÙÙ", grade: "18/20", note: "Ø£Ø¯Ø§Ø¡ ÙÙØªØ§Ø² ÙÙØ´Ø§Ø±ÙØ© ÙØ¹Ø§ÙØ©" },
+      { subject: "Ø§ÙØ±ÙØ§Ø¶ÙØ§Øª", date: "18 ÙÙÙÙÙ", grade: "19/20", note: "Ø¥ØªÙØ§Ù ÙØ§ÙÙ ÙÙÙØ§Ø±Ø§Øª Ø§ÙØ¹Ø¯" },
     ],
     messages: [
-      { from: "المعلمة سارة", text: "تذكير: غدًا يوم الزي الرياضي 🏃‍♂️", time: "10:32 ص", sender: "teacher" },
-      { from: "ولي الأمر", text: "تمام، شكرًا على التذكير 🙏", time: "10:35 ص", sender: "parent" },
-      { from: "إدارة المدرسة", text: "نرجو سداد الرسوم قبل نهاية الشهر", time: "أمس", sender: "admin" },
+      { from: "Ø§ÙÙØ¹ÙÙØ© Ø³Ø§Ø±Ø©", text: "ØªØ°ÙÙØ±: ØºØ¯ÙØ§ ÙÙÙ Ø§ÙØ²Ù Ø§ÙØ±ÙØ§Ø¶Ù ðââï¸", time: "10:32 Øµ", sender: "teacher" },
+      { from: "ÙÙÙ Ø§ÙØ£ÙØ±", text: "ØªÙØ§ÙØ Ø´ÙØ±ÙØ§ Ø¹ÙÙ Ø§ÙØªØ°ÙÙØ± ð", time: "10:35 Øµ", sender: "parent" },
+      { from: "Ø¥Ø¯Ø§Ø±Ø© Ø§ÙÙØ¯Ø±Ø³Ø©", text: "ÙØ±Ø¬Ù Ø³Ø¯Ø§Ø¯ Ø§ÙØ±Ø³ÙÙ ÙØ¨Ù ÙÙØ§ÙØ© Ø§ÙØ´ÙØ±", time: "Ø£ÙØ³", sender: "admin" },
     ],
   },
   std_002: {
     profile: {
-      name: "لين خالد", grade: "KG2 — فصل 2", nationalId: "1yyyyyyyyy",
-      birthDate: "05 / 09 / 2020", bloodType: "A+", contact: "0559876543", avatar: "ل",
+      name: "ÙÙÙ Ø®Ø§ÙØ¯", grade: "KG2 â ÙØµÙ 2", nationalId: "1yyyyyyyyy",
+      birthDate: "05 / 09 / 2020", bloodType: "A+", contact: "0559876543", avatar: "Ù",
+      classId: null, status: "active", withdrawalReason: "", withdrawalDate: "",
     },
     homework: [],
     onlineClasses: [],
     attendance: {
-      "2026-06-07": "حاضر", "2026-06-08": "حاضر", "2026-06-09": "حاضر",
-      "2026-06-10": "حاضر", "2026-06-11": "غائب",
+      "2026-06-07": "Ø­Ø§Ø¶Ø±", "2026-06-08": "Ø­Ø§Ø¶Ø±", "2026-06-09": "Ø­Ø§Ø¶Ø±",
+      "2026-06-10": "Ø­Ø§Ø¶Ø±", "2026-06-11": "ØºØ§Ø¦Ø¨",
     },
     dailyReports: [
-      { date: "2026-06-07", behavior: 5, participation: 5, focus: 5, activities: 4, notes: "لين كانت متعاونة جدًا ونشطة في حصة القراءة." },
+      { date: "2026-06-07", behavior: 5, participation: 5, focus: 5, activities: 4, notes: "ÙÙÙ ÙØ§ÙØª ÙØªØ¹Ø§ÙÙØ© Ø¬Ø¯ÙØ§ ÙÙØ´Ø·Ø© ÙÙ Ø­ØµØ© Ø§ÙÙØ±Ø§Ø¡Ø©." },
     ],
     grades: { English: 90, Math: 87, Arabic: 95, Science: 89 },
     exams: [
-      { subject: "اللغة العربية", date: "16 يونيو", grade: "20/20", note: "ممتاز" },
+      { subject: "Ø§ÙÙØºØ© Ø§ÙØ¹Ø±Ø¨ÙØ©", date: "16 ÙÙÙÙÙ", grade: "20/20", note: "ÙÙØªØ§Ø²" },
     ],
     messages: [
-      { from: "المعلمة هند", text: "أحسنت لين اليوم في درس الحروف ⭐", time: "09:10 ص", sender: "teacher" },
+      { from: "Ø§ÙÙØ¹ÙÙØ© ÙÙØ¯", text: "Ø£Ø­Ø³ÙØª ÙÙÙ Ø§ÙÙÙÙ ÙÙ Ø¯Ø±Ø³ Ø§ÙØ­Ø±ÙÙ â­", time: "09:10 Øµ", sender: "teacher" },
     ],
   },
 };
 
 const DEFAULT_GALLERY = {
-  g_1: { title: "نشاط الألوان", color: "green", studentId: null, images: [] },
-  g_2: { title: "رحلة الحديقة", color: "blue", studentId: null, images: [] },
-  g_3: { title: "احتفال نهاية الأسبوع", color: "orange", studentId: null, images: [] },
-  g_4: { title: "مشروع الحروف", color: "purple", studentId: null, images: [] },
+  g_1: { title: "ÙØ´Ø§Ø· Ø§ÙØ£ÙÙØ§Ù", color: "green", studentId: null, images: [] },
+  g_2: { title: "Ø±Ø­ÙØ© Ø§ÙØ­Ø¯ÙÙØ©", color: "blue", studentId: null, images: [] },
+  g_3: { title: "Ø§Ø­ØªÙØ§Ù ÙÙØ§ÙØ© Ø§ÙØ£Ø³Ø¨ÙØ¹", color: "orange", studentId: null, images: [] },
+  g_4: { title: "ÙØ´Ø±ÙØ¹ Ø§ÙØ­Ø±ÙÙ", color: "purple", studentId: null, images: [] },
 };
 
 // ---------------------------------------------------------------------
@@ -317,7 +320,7 @@ export async function persistChanges(prev, next) {
 
 export async function uploadGalleryImage(albumId, file) {
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-    throw new Error("إعدادات Cloudinary غير مكتملة. تحقق من ملف .env");
+    throw new Error("Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Cloudinary ØºÙØ± ÙÙØªÙÙØ©. ØªØ­ÙÙ ÙÙ ÙÙÙ .env");
   }
   const formData = new FormData();
   formData.append("file", file);
@@ -330,7 +333,7 @@ export async function uploadGalleryImage(albumId, file) {
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || "فشل رفع الصورة إلى Cloudinary");
+    throw new Error(err?.error?.message || "ÙØ´Ù Ø±ÙØ¹ Ø§ÙØµÙØ±Ø© Ø¥ÙÙ Cloudinary");
   }
   const data = await res.json();
   return { url: data.secure_url, path: data.public_id };
@@ -343,3 +346,4 @@ export async function deleteStorageFile(path) {
   // 25GB free tier) and can be deleted manually there if needed.
   if (path) console.info("Cloudinary asset kept in Media Library:", path);
 }
+
