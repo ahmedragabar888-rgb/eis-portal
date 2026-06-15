@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Home, Users, BookOpen, ClipboardCheck, FileText, BarChart3,
   Calendar, GraduationCap, Image as ImageIcon, MessageCircle, Bell,
   LogOut, ChevronLeft, Menu, Plus, Trash2, Key, Star, CheckCircle2, XCircle,
-  Settings, Upload,
+  Settings, Upload, Layers, PieChart, Printer, UserX, RotateCcw,
 } from "lucide-react";
 import { COLORS, Logo, Card, CardTitle, Input, Select, PrimaryButton, Badge } from "./theme.jsx";
 import { uploadGalleryImage } from "./store.js";
@@ -11,8 +11,10 @@ import { uploadGalleryImage } from "./store.js";
 const NAV_ITEMS = [
   { id: "overview", label: "نظرة عامة", icon: Home },
   { id: "students", label: "الطلاب وأولياء الأمور", icon: Users },
+  { id: "classes", label: "إدارة الفصول", icon: Layers },
   { id: "homework", label: "إدارة الواجبات", icon: BookOpen },
   { id: "attendance", label: "تسجيل الحضور والغياب", icon: ClipboardCheck },
+  { id: "attendanceReports", label: "تقارير الحضور", icon: PieChart },
   { id: "reports", label: "التقارير اليومية", icon: FileText },
   { id: "grades", label: "الدرجات والمستوى", icon: BarChart3 },
   { id: "schedule", label: "الجدول الدراسي", icon: Calendar },
@@ -30,7 +32,7 @@ function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen }) {
     <>
       {mobileOpen && <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
       <aside
-        className={`fixed md:sticky top-0 right-0 h-screen z-40 w-64 shrink-0 flex flex-col transition-transform duration-300
+        className={`fixed md:sticky top-0 right-0 h-screen z-40 w-64 shrink-0 flex flex-col transition-transform duration-300 no-print
           ${mobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}`}
         style={{ background: "linear-gradient(180deg,#3F1E63,#5B2A86)" }}
       >
@@ -147,6 +149,8 @@ function StudentsPage({ data, updateData }) {
   });
   const [resetTarget, setResetTarget] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [withdrawForm, setWithdrawForm] = useState({ date: new Date().toISOString().slice(0, 10), reason: "" });
 
   function addStudent(e) {
     e.preventDefault();
@@ -159,6 +163,7 @@ function StudentsPage({ data, updateData }) {
         id, name: form.name, grade: form.grade, nationalId: form.nationalId || "-",
         birthDate: form.birthDate || "-", bloodType: form.bloodType, contact: form.contact,
         avatar: form.name.trim()[0] || "؟",
+        classId: null, status: "active", withdrawalReason: "", withdrawalDate: "",
       });
       next.users.parents.push({ username: form.username, password: form.password, role: "parent", studentId: id });
       next.attendance[id] = {};
@@ -185,6 +190,37 @@ function StudentsPage({ data, updateData }) {
       delete next.messages[id];
       next.homework = next.homework.filter((h) => h.studentId !== id);
       next.onlineClasses = next.onlineClasses.filter((c) => c.studentId !== id);
+      return next;
+    });
+  }
+
+  function markWithdrawn(e) {
+    e.preventDefault();
+    if (!withdrawForm.reason.trim()) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      const student = next.students.find((s) => s.id === withdrawTarget);
+      if (student) {
+        student.status = "withdrawn";
+        student.withdrawalDate = withdrawForm.date;
+        student.withdrawalReason = withdrawForm.reason.trim();
+      }
+      return next;
+    });
+    setWithdrawTarget(null);
+    setWithdrawForm({ date: new Date().toISOString().slice(0, 10), reason: "" });
+  }
+
+  function reactivateStudent(id) {
+    if (!confirm("هل تريد إعادة تنشيط هذا الطالب وإلغاء حالة الانسحاب؟")) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      const student = next.students.find((s) => s.id === id);
+      if (student) {
+        student.status = "active";
+        student.withdrawalDate = "";
+        student.withdrawalReason = "";
+      }
       return next;
     });
   }
@@ -249,15 +285,36 @@ function StudentsPage({ data, updateData }) {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "linear-gradient(135deg,#A78BFA,#5B2A86)" }}>{s.avatar}</div>
                   <div>
-                    <div className="font-extrabold text-sm" style={{ color: COLORS.text }}>{s.name}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-extrabold text-sm" style={{ color: COLORS.text }}>{s.name}</span>
+                      {s.status === "withdrawn" ? (
+                        <Badge color={COLORS.red} bg={COLORS.redBg}>منسحب</Badge>
+                      ) : (
+                        <Badge color={COLORS.green} bg={COLORS.greenBg}>نشط</Badge>
+                      )}
+                    </div>
                     <div className="text-xs" style={{ color: COLORS.sub }}>{s.grade} — {s.contact}</div>
                     {parent && <div className="text-xs mt-0.5" style={{ color: COLORS.sub }}>اسم الدخول: <b dir="ltr">{parent.username}</b></div>}
+                    {s.status === "withdrawn" && (
+                      <div className="text-xs mt-0.5" style={{ color: COLORS.red }}>
+                        تاريخ الانسحاب: {s.withdrawalDate || "-"} | السبب: {s.withdrawalReason || "-"}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => setResetTarget(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#F3F0FB", color: COLORS.purple }}>
                     <Key size={14} /> إعادة تعيين كلمة المرور
                   </button>
+                  {s.status === "withdrawn" ? (
+                    <button onClick={() => reactivateStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.greenBg, color: COLORS.green }}>
+                      <RotateCcw size={14} /> إلغاء الانسحاب
+                    </button>
+                  ) : (
+                    <button onClick={() => { setWithdrawTarget(s.id); setWithdrawForm({ date: new Date().toISOString().slice(0, 10), reason: "" }); }} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.orangeBg, color: COLORS.orange }}>
+                      <UserX size={14} /> تسجيل انسحاب
+                    </button>
+                  )}
                   <button onClick={() => removeStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.redBg, color: COLORS.red }}>
                     <Trash2 size={14} /> حذف
                   </button>
@@ -277,6 +334,19 @@ function StudentsPage({ data, updateData }) {
             </div>
             <PrimaryButton type="submit">حفظ</PrimaryButton>
             <button type="button" onClick={() => { setResetTarget(null); setNewPassword(""); }} className="text-sm font-bold px-3" style={{ color: COLORS.sub }}>إلغاء</button>
+          </form>
+        </Card>
+      )}
+      {withdrawTarget && (
+        <Card>
+          <CardTitle icon={UserX} color={COLORS.orange}>تسجيل انسحاب الطالب</CardTitle>
+          <form onSubmit={markWithdrawn} className="grid sm:grid-cols-2 gap-x-4 items-end">
+            <Input label="تاريخ الانسحاب" type="date" value={withdrawForm.date} onChange={(e) => setWithdrawForm({ ...withdrawForm, date: e.target.value })} required />
+            <Input label="سبب الانسحاب" value={withdrawForm.reason} onChange={(e) => setWithdrawForm({ ...withdrawForm, reason: e.target.value })} placeholder="مثال: انتقال السكن" required />
+            <div className="sm:col-span-2 flex gap-3">
+              <PrimaryButton type="submit">تأكيد الانسحاب</PrimaryButton>
+              <button type="button" onClick={() => setWithdrawTarget(null)} className="text-sm font-bold px-3" style={{ color: COLORS.sub }}>إلغاء</button>
+            </div>
           </form>
         </Card>
       )}
@@ -364,9 +434,26 @@ function HomeworkAdminPage({ data, updateData }) {
 }
 
 function AttendanceAdminPage({ data, updateData }) {
-  const [studentId, setStudentId] = useState(data.students[0]?.id || "");
+  const classes = data.classes || [];
+  const classMap = Object.fromEntries(classes.map((c) => [c.id, c]));
+  const activeStudents = data.students.filter((s) => s.status !== "withdrawn");
+
+  const [periodFilter, setPeriodFilter] = useState("all");
+  const filteredStudents = activeStudents.filter((s) => {
+    if (periodFilter === "all") return true;
+    const cls = classMap[s.classId];
+    return cls && cls.period === periodFilter;
+  });
+
+  const [studentId, setStudentId] = useState(filteredStudents[0]?.id || activeStudents[0]?.id || "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [status, setStatus] = useState("حاضر");
+
+  useEffect(() => {
+    if (!filteredStudents.find((s) => s.id === studentId)) {
+      setStudentId(filteredStudents[0]?.id || "");
+    }
+  }, [periodFilter]);
 
   function record(e) {
     e.preventDefault();
@@ -385,9 +472,30 @@ function AttendanceAdminPage({ data, updateData }) {
     <div className="flex flex-col gap-5">
       <Card>
         <CardTitle icon={ClipboardCheck}>تسجيل حضور / غياب</CardTitle>
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {[
+            { key: "all", label: "الكل" },
+            { key: "morning", label: "☀️ صباحي" },
+            { key: "evening", label: "🌙 مسائي" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setPeriodFilter(t.key)}
+              className="px-4 py-2 rounded-xl text-sm font-extrabold transition"
+              style={{
+                background: periodFilter === t.key ? "linear-gradient(90deg,#7C3AED,#5B2A86)" : "#F8F7FC",
+                color: periodFilter === t.key ? "white" : COLORS.text,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <form onSubmit={record} className="grid sm:grid-cols-2 gap-x-4 items-end">
           <Select label="الطالب" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-            {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+            {filteredStudents.length === 0 && <option value="">لا يوجد طلاب في هذه الفترة</option>}
+            {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
           </Select>
           <Input label="التاريخ" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <Select label="الحالة" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -395,7 +503,7 @@ function AttendanceAdminPage({ data, updateData }) {
             <option value="غائب">غائب</option>
           </Select>
           <div>
-            <PrimaryButton type="submit" className="w-full">حفظ السجل</PrimaryButton>
+            <PrimaryButton type="submit" className="w-full" disabled={!studentId}>حفظ السجل</PrimaryButton>
           </div>
         </form>
       </Card>
@@ -930,9 +1038,305 @@ function SettingsAdminPage({ data, updateData }) {
   );
 }
 
+function ClassesAdminPage({ data, updateData }) {
+  const classes = data.classes || [];
+  const [form, setForm] = useState({ name: "", period: "morning" });
+
+  function addClass(e) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      if (!next.classes) next.classes = [];
+      next.classes.push({ id: "cls_" + Date.now(), name: form.name.trim(), period: form.period });
+      return next;
+    });
+    setForm({ name: "", period: "morning" });
+  }
+
+  function renameClass(id, name) {
+    updateData((d) => {
+      const next = structuredClone(d);
+      const cls = (next.classes || []).find((c) => c.id === id);
+      if (!cls) return next;
+      cls.name = name;
+      next.students.forEach((s) => { if (s.classId === id) s.grade = name; });
+      return next;
+    });
+  }
+
+  function setClassPeriod(id, period) {
+    updateData((d) => {
+      const next = structuredClone(d);
+      const cls = (next.classes || []).find((c) => c.id === id);
+      if (cls) cls.period = period;
+      return next;
+    });
+  }
+
+  function removeClass(id) {
+    if (!confirm("هل أنت متأكد من حذف هذا الفصل؟ سيصبح الطلاب المسجلون فيه بلا فصل.")) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      next.classes = (next.classes || []).filter((c) => c.id !== id);
+      next.students.forEach((s) => { if (s.classId === id) { s.classId = null; s.grade = "غير محدد"; } });
+      return next;
+    });
+  }
+
+  function assignStudent(studentId, classId) {
+    updateData((d) => {
+      const next = structuredClone(d);
+      const student = next.students.find((s) => s.id === studentId);
+      if (!student) return next;
+      student.classId = classId || null;
+      const cls = (next.classes || []).find((c) => c.id === classId);
+      student.grade = cls ? cls.name : "غير محدد";
+      return next;
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Card>
+        <CardTitle icon={Layers}>إضافة فصل جديد</CardTitle>
+        <form onSubmit={addClass} className="grid sm:grid-cols-2 gap-x-4 items-end">
+          <Input label="اسم الفصل" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="مثال: KG1 — فصل 1" required />
+          <Select label="الفترة" value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })}>
+            <option value="morning">☀️ صباحي</option>
+            <option value="evening">🌙 مسائي</option>
+          </Select>
+          <div className="sm:col-span-2">
+            <PrimaryButton type="submit">إضافة الفصل</PrimaryButton>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardTitle icon={Layers}>الفصول الحالية</CardTitle>
+        <div className="flex flex-col gap-3">
+          {classes.length === 0 && <p className="text-sm" style={{ color: COLORS.sub }}>لا توجد فصول مضافة بعد. أضف فصلاً من الأعلى.</p>}
+          {classes.map((c) => {
+            const students = data.students.filter((s) => s.classId === c.id);
+            return (
+              <div key={c.id} className="rounded-xl p-4" style={{ background: "#F8F7FC" }}>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                    <input
+                      value={c.name}
+                      onChange={(e) => renameClass(c.id, e.target.value)}
+                      className="font-extrabold text-sm rounded-lg border px-3 py-1.5 outline-none focus:border-[#A78BFA] flex-1"
+                      style={{ borderColor: "#E5E7EB", color: COLORS.text, background: "white" }}
+                    />
+                    <select
+                      value={c.period}
+                      onChange={(e) => setClassPeriod(c.id, e.target.value)}
+                      className="text-xs font-extrabold rounded-full px-2.5 py-1.5 border outline-none"
+                      style={{
+                        borderColor: "#E5E7EB",
+                        color: c.period === "evening" ? COLORS.purple : COLORS.blue,
+                        background: c.period === "evening" ? "#F3E8FF" : COLORS.blueBg,
+                      }}
+                    >
+                      <option value="morning">☀️ صباحي</option>
+                      <option value="evening">🌙 مسائي</option>
+                    </select>
+                  </div>
+                  <button onClick={() => removeClass(c.id)} className="p-2 rounded-lg" style={{ background: COLORS.redBg, color: COLORS.red }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="text-xs mb-2" style={{ color: COLORS.sub }}>{students.length} طالب/ة</div>
+                {students.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {students.map((s) => <Badge key={s.id} color={COLORS.purple} bg="#F3E8FF">{s.name}</Badge>)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle icon={Users}>تعيين الطلاب للفصول</CardTitle>
+        <div className="flex flex-col gap-2">
+          {data.students.length === 0 && <p className="text-sm" style={{ color: COLORS.sub }}>لا يوجد طلاب مسجلون.</p>}
+          {data.students.map((s) => (
+            <div key={s.id} className="flex items-center justify-between flex-wrap gap-2 rounded-xl px-4 py-3" style={{ background: "#F8F7FC" }}>
+              <div className="font-bold text-sm flex items-center gap-2" style={{ color: COLORS.text }}>
+                {s.name}
+                {s.status === "withdrawn" && <Badge color={COLORS.red} bg={COLORS.redBg}>منسحب</Badge>}
+              </div>
+              <select
+                value={s.classId || ""}
+                onChange={(e) => assignStudent(s.id, e.target.value)}
+                className="rounded-xl border px-3 py-2 text-sm outline-none bg-white focus:border-[#A78BFA]"
+                style={{ borderColor: "#E5E7EB" }}
+              >
+                <option value="">بلا فصل</option>
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.period === "evening" ? "مسائي" : "صباحي"})</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Bar({ label, value, total, color, bg }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="mb-3">
+      <div className="flex items-center justify-between text-xs font-bold mb-1" style={{ color: COLORS.text }}>
+        <span>{label}</span>
+        <span>{value} ({pct}%)</span>
+      </div>
+      <div className="w-full h-2.5 rounded-full" style={{ background: "#EEE" }}>
+        <div className="h-2.5 rounded-full" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function AttendanceReportsPage({ data }) {
+  const classes = data.classes || [];
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const [classFilter, setClassFilter] = useState("all");
+  const [from, setFrom] = useState(firstOfMonth);
+  const [to, setTo] = useState(todayStr);
+
+  const scopedStudents = data.students.filter((s) => classFilter === "all" || s.classId === classFilter);
+  const activeScoped = scopedStudents.filter((s) => s.status !== "withdrawn");
+  const withdrawnScoped = scopedStudents.filter((s) => s.status === "withdrawn");
+
+  function countsFor(studentId) {
+    const records = data.attendance[studentId] || {};
+    let present = 0, absent = 0;
+    Object.entries(records).forEach(([d, v]) => {
+      if (d < from || d > to) return;
+      if (v === "حاضر") present++;
+      else if (v === "غائب") absent++;
+    });
+    return { present, absent };
+  }
+
+  let totalPresent = 0, totalAbsent = 0;
+  const rows = activeScoped.map((s) => {
+    const { present, absent } = countsFor(s.id);
+    totalPresent += present;
+    totalAbsent += absent;
+    const total = present + absent;
+    const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { ...s, present, absent, pct };
+  });
+
+  const className = classFilter === "all" ? "كل الفصول" : (classes.find((c) => c.id === classFilter)?.name || "—");
+  const totalDays = totalPresent + totalAbsent;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Card className="no-print">
+        <CardTitle icon={PieChart}>تقارير الحضور والغياب والانسحاب</CardTitle>
+        <div className="grid sm:grid-cols-3 gap-x-4 items-end">
+          <Select label="الفصل" value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+            <option value="all">كل الفصول</option>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.period === "evening" ? "مسائي" : "صباحي"})</option>)}
+          </Select>
+          <Input label="من تاريخ" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input label="إلى تاريخ" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <div className="mt-2">
+          <PrimaryButton onClick={() => window.print()}>
+            <span className="flex items-center gap-2"><Printer size={16} /> طباعة التقرير</span>
+          </PrimaryButton>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-4">
+          <h2 className="font-extrabold text-lg" style={{ color: COLORS.text }}>تقرير الحضور — {className}</h2>
+          <p className="text-xs" style={{ color: COLORS.sub }}>الفترة من {from} إلى {to}</p>
+        </div>
+
+        <CardTitle icon={BarChart3}>الملخص الإجمالي</CardTitle>
+        <Bar label="إجمالي أيام الحضور" value={totalPresent} total={Math.max(totalDays, 1)} color={COLORS.green} />
+        <Bar label="إجمالي أيام الغياب" value={totalAbsent} total={Math.max(totalDays, 1)} color={COLORS.red} />
+        <div className="flex items-center justify-between text-xs font-bold mt-3 mb-1" style={{ color: COLORS.text }}>
+          <span>عدد الطلاب المنسحبين</span>
+          <span>{withdrawnScoped.length}</span>
+        </div>
+      </Card>
+
+      <Card>
+        <CardTitle icon={ClipboardCheck}>تفاصيل الحضور لكل طالب</CardTitle>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" dir="rtl">
+            <thead>
+              <tr style={{ color: COLORS.sub }}>
+                <th className="text-right py-2 font-bold">الطالب</th>
+                <th className="text-right py-2 font-bold">الفصل</th>
+                <th className="text-center py-2 font-bold">أيام الحضور</th>
+                <th className="text-center py-2 font-bold">أيام الغياب</th>
+                <th className="text-center py-2 font-bold">نسبة الحضور</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={5} className="text-center py-4" style={{ color: COLORS.sub }}>لا يوجد طلاب في هذا النطاق.</td></tr>
+              )}
+              {rows.map((s) => (
+                <tr key={s.id} style={{ borderTop: "1px solid #F0EEF7" }}>
+                  <td className="py-2 font-extrabold" style={{ color: COLORS.text }}>{s.name}</td>
+                  <td className="py-2" style={{ color: COLORS.sub }}>{s.grade}</td>
+                  <td className="py-2 text-center" style={{ color: COLORS.green }}>{s.present}</td>
+                  <td className="py-2 text-center" style={{ color: COLORS.red }}>{s.absent}</td>
+                  <td className="py-2 text-center font-extrabold" style={{ color: COLORS.text }}>{s.pct}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {withdrawnScoped.length > 0 && (
+        <Card>
+          <CardTitle icon={UserX} color={COLORS.orange}>الطلاب المنسحبون</CardTitle>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" dir="rtl">
+              <thead>
+                <tr style={{ color: COLORS.sub }}>
+                  <th className="text-right py-2 font-bold">الطالب</th>
+                  <th className="text-right py-2 font-bold">الفصل</th>
+                  <th className="text-right py-2 font-bold">تاريخ الانسحاب</th>
+                  <th className="text-right py-2 font-bold">السبب</th>
+                </tr>
+              </thead>
+              <tbody>
+                {withdrawnScoped.map((s) => (
+                  <tr key={s.id} style={{ borderTop: "1px solid #F0EEF7" }}>
+                    <td className="py-2 font-extrabold" style={{ color: COLORS.text }}>{s.name}</td>
+                    <td className="py-2" style={{ color: COLORS.sub }}>{s.grade}</td>
+                    <td className="py-2" style={{ color: COLORS.red }}>{s.withdrawalDate || "-"}</td>
+                    <td className="py-2" style={{ color: COLORS.sub }}>{s.withdrawalReason || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 const PAGES = {
-  overview: OverviewPage, students: StudentsPage, homework: HomeworkAdminPage,
-  attendance: AttendanceAdminPage, reports: ReportsAdminPage, grades: GradesAdminPage,
+  overview: OverviewPage, students: StudentsPage, classes: ClassesAdminPage, homework: HomeworkAdminPage,
+  attendance: AttendanceAdminPage, attendanceReports: AttendanceReportsPage, reports: ReportsAdminPage, grades: GradesAdminPage,
   schedule: ScheduleAdminPage, exams: ExamsAdminPage, gallery: GalleryAdminPage,
   announcements: AnnouncementsAdminPage, messages: MessagesAdminPage, settings: SettingsAdminPage,
 };
@@ -947,7 +1351,9 @@ export default function AdminDashboard({ data, updateData, onLogout }) {
     <div className="min-h-screen flex" dir="rtl" style={{ background: COLORS.bg }}>
       <Sidebar active={active} setActive={setActive} onLogout={onLogout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
-        <TopBar title={TITLES[active]} onMenu={() => setMobileOpen(true)} />
+        <div className="no-print">
+          <TopBar title={TITLES[active]} onMenu={() => setMobileOpen(true)} />
+        </div>
         <Page data={data} updateData={updateData} />
       </main>
     </div>
