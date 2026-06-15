@@ -144,7 +144,7 @@ function OverviewPage({ data }) {
 function StudentsPage({ data, updateData }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
-    name: "", grade: "KG1 — فصل 1", nationalId: "", birthDate: "", bloodType: "O+",
+    name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+",
     contact: "", username: "", password: "",
   });
   const [resetTarget, setResetTarget] = useState(null);
@@ -159,11 +159,12 @@ function StudentsPage({ data, updateData }) {
     const id = "std_" + Date.now();
     updateData((d) => {
       const next = structuredClone(d);
+      const cls = (next.classes || []).find((c) => c.id === form.classId);
       next.students.push({
-        id, name: form.name, grade: form.grade, nationalId: form.nationalId || "-",
+        id, name: form.name, grade: cls ? cls.name : "غير محدد", nationalId: form.nationalId || "-",
         birthDate: form.birthDate || "-", bloodType: form.bloodType, contact: form.contact,
         avatar: form.name.trim()[0] || "؟",
-        classId: null, status: "active", withdrawalReason: "", withdrawalDate: "",
+        classId: form.classId || null, status: "active", withdrawalReason: "", withdrawalDate: "",
       });
       next.users.parents.push({ username: form.username, password: form.password, role: "parent", studentId: id });
       next.attendance[id] = {};
@@ -173,7 +174,7 @@ function StudentsPage({ data, updateData }) {
       next.messages[id] = [];
       return next;
     });
-    setForm({ name: "", grade: "KG1 — فصل 1", nationalId: "", birthDate: "", bloodType: "O+", contact: "", username: "", password: "" });
+    setForm({ name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+", contact: "", username: "", password: "" });
     setShowForm(false);
   }
 
@@ -252,13 +253,11 @@ function StudentsPage({ data, updateData }) {
           <CardTitle icon={Plus}>بيانات الطالب وحساب ولي الأمر</CardTitle>
           <form onSubmit={addStudent} className="grid sm:grid-cols-2 gap-x-4">
             <Input label="اسم الطالب" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            <Select label="الصف" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })}>
-              <option>KG1 — فصل 1</option>
-              <option>KG1 — فصل 2</option>
-              <option>KG2 — فصل 1</option>
-              <option>KG2 — فصل 2</option>
-              <option>KG3 — فصل 1</option>
-              <option>KG3 — فصل 2</option>
+            <Select label="الفصل" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
+              <option value="">بلا فصل (يمكن التعيين لاحقاً)</option>
+              {(data.classes || []).map((c) => (
+                <option key={c.id} value={c.id}>{c.name} ({c.period === "evening" ? "مسائي" : "صباحي"})</option>
+              ))}
             </Select>
             <Input label="رقم الهوية" value={form.nationalId} onChange={(e) => setForm({ ...form, nationalId: e.target.value })} />
             <Input label="تاريخ الميلاد" placeholder="DD/MM/YYYY" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
