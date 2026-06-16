@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import LoginScreen from "./LoginScreen.jsx";
+import TeacherLoginScreen from "./TeacherLoginScreen.jsx";
+import TeacherDashboard from "./TeacherDashboard.jsx";
 import ParentPortal from "./ParentPortal.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import { COLORS, Logo } from "./theme.jsx";
@@ -19,6 +21,14 @@ export default function App() {
       return null;
     }
   });
+
+  const [hash, setHash] = useState(() => window.location.hash);
+
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   const [authReady, setAuthReady] = useState(false);
   const [meta, setMeta] = useState(null);
@@ -76,7 +86,7 @@ export default function App() {
       return;
     }
     let unsub;
-    if (session.role === "admin") {
+    if (session.role === "admin" || session.role === "teacher") {
       unsub = subscribeAllStudents(setStudentsMap);
     } else {
       unsub = subscribeStudent(session.studentId, setStudentsMap);
@@ -128,6 +138,9 @@ export default function App() {
   }
 
   if (!session) {
+    if (hash === "#teacher") {
+      return <TeacherLoginScreen data={data} onLogin={handleLogin} onBack={() => { window.location.hash = ""; }} />;
+    }
     return <LoginScreen data={data} onLogin={handleLogin} />;
   }
 
@@ -137,6 +150,10 @@ export default function App() {
 
   if (session.role === "admin") {
     return <AdminDashboard data={data} updateData={updateData} onLogout={handleLogout} />;
+  }
+
+  if (session.role === "teacher") {
+    return <TeacherDashboard data={data} updateData={updateData} session={session} onLogout={handleLogout} />;
   }
 
   return (
