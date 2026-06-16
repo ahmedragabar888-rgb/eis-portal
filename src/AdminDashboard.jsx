@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { id: "overview", label: "نظرة عامة", icon: Home },
   { id: "students", label: "الطلاب وأولياء الأمور", icon: Users },
   { id: "classes", label: "إدارة الفصول", icon: Layers },
+  { id: "teachers", label: "إدارة المعلمات", icon: GraduationCap },
   { id: "homework", label: "إدارة الواجبات", icon: BookOpen },
   { id: "attendance", label: "تسجيل الحضور والغياب", icon: ClipboardCheck },
   { id: "attendanceReports", label: "تقارير الحضور", icon: PieChart },
@@ -146,6 +147,7 @@ function StudentsPage({ data, updateData }) {
   const [form, setForm] = useState({
     name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+",
     contact: "", username: "", password: "",
+    feesType: "monthly", feesAmount: "", installments: [{ date: "", amount: "", paid: false }],
   });
   const [resetTarget, setResetTarget] = useState(null);
   const [newPassword, setNewPassword] = useState("");
@@ -165,6 +167,9 @@ function StudentsPage({ data, updateData }) {
         birthDate: form.birthDate || "-", bloodType: form.bloodType, contact: form.contact,
         avatar: form.name.trim()[0] || "؟",
         classId: form.classId || null, status: "active", withdrawalReason: "", withdrawalDate: "",
+        fees: form.feesType === "monthly"
+          ? { type: "monthly", amount: parseFloat(form.feesAmount) || 0, installments: [], paidMonths: [] }
+          : { type: "installments", amount: 0, installments: form.installments.map((i) => ({ ...i, amount: parseFloat(i.amount) || 0, paid: i.paid || false })), paidMonths: [] },
       });
       next.users.parents.push({ username: form.username, password: form.password, role: "parent", studentId: id });
       next.attendance[id] = {};
@@ -174,7 +179,7 @@ function StudentsPage({ data, updateData }) {
       next.messages[id] = [];
       return next;
     });
-    setForm({ name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+", contact: "", username: "", password: "" });
+    setForm({ name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+", contact: "", username: "", password: "", feesType: "monthly", feesAmount: "", installments: [{ date: "", amount: "", paid: false }] });
     setShowForm(false);
   }
 
@@ -267,6 +272,51 @@ function StudentsPage({ data, updateData }) {
             <Input label="رقم تواصل ولي الأمر" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
             <Input label="اسم مستخدم ولي الأمر (رقم الجوال)" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
             <Input label="كلمة المرور" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+
+            {/* Fees section */}
+            <div className="sm:col-span-2">
+              <div className="font-extrabold text-sm mb-3 mt-2 pb-2 border-b" style={{ color: COLORS.text, borderColor: "#F0EEF7" }}>💰 الرسوم الدراسية</div>
+              <div className="grid sm:grid-cols-2 gap-x-4">
+                <Select label="نوع الرسوم" value={form.feesType} onChange={(e) => setForm({ ...form, feesType: e.target.value })}>
+                  <option value="monthly">شهري</option>
+                  <option value="installments">دفعات</option>
+                </Select>
+                {form.feesType === "monthly" && (
+                  <Input label="المبلغ الشهري (ريال)" type="number" value={form.feesAmount} onChange={(e) => setForm({ ...form, feesAmount: e.target.value })} placeholder="مثال: 1500" />
+                )}
+              </div>
+              {form.feesType === "installments" && (
+                <div className="mt-3 flex flex-col gap-3">
+                  {form.installments.map((inst, idx) => (
+                    <div key={idx} className="grid sm:grid-cols-3 gap-x-3 items-end rounded-xl p-3" style={{ background: "#F8F7FC" }}>
+                      <Input label={`تاريخ الدفعة ${idx + 1}`} type="date" value={inst.date} onChange={(e) => {
+                        const next = form.installments.map((x, i) => i === idx ? { ...x, date: e.target.value } : x);
+                        setForm({ ...form, installments: next });
+                      }} />
+                      <Input label="المبلغ (ريال)" type="number" value={inst.amount} onChange={(e) => {
+                        const next = form.installments.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x);
+                        setForm({ ...form, installments: next });
+                      }} placeholder="مثال: 2000" />
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-1 text-xs font-bold" style={{ color: COLORS.text }}>
+                          <input type="checkbox" checked={inst.paid} onChange={(e) => {
+                            const next = form.installments.map((x, i) => i === idx ? { ...x, paid: e.target.checked } : x);
+                            setForm({ ...form, installments: next });
+                          }} /> مدفوعة
+                        </label>
+                        {form.installments.length > 1 && (
+                          <button type="button" onClick={() => setForm({ ...form, installments: form.installments.filter((_, i) => i !== idx) })} className="text-xs font-bold px-2" style={{ color: COLORS.red }}>حذف</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setForm({ ...form, installments: [...form.installments, { date: "", amount: "", paid: false }] })} className="text-sm font-extrabold px-4 py-2 rounded-xl w-fit" style={{ background: "#F3E8FF", color: COLORS.purple }}>
+                    + إضافة دفعة
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="sm:col-span-2 flex gap-3">
               <PrimaryButton type="submit">حفظ الطالب</PrimaryButton>
               <button type="button" onClick={() => setShowForm(false)} className="text-sm font-bold px-5" style={{ color: COLORS.sub }}>إلغاء</button>
@@ -294,6 +344,11 @@ function StudentsPage({ data, updateData }) {
                     </div>
                     <div className="text-xs" style={{ color: COLORS.sub }}>{s.grade} — {s.contact}</div>
                     {parent && <div className="text-xs mt-0.5" style={{ color: COLORS.sub }}>اسم الدخول: <b dir="ltr">{parent.username}</b></div>}
+                    {s.fees && (
+                      <div className="text-xs mt-0.5" style={{ color: COLORS.purple }}>
+                        💰 {s.fees.type === "monthly" ? `${s.fees.amount?.toLocaleString()} ريال/شهر` : `دفعات (${s.fees.installments?.length || 0})`}
+                      </div>
+                    )}
                     {s.status === "withdrawn" && (
                       <div className="text-xs mt-0.5" style={{ color: COLORS.red }}>
                         تاريخ الانسحاب: {s.withdrawalDate || "-"} | السبب: {s.withdrawalReason || "-"}
@@ -1250,7 +1305,56 @@ function AttendanceReportsPage({ data }) {
           <Input label="إلى تاريخ" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <div className="mt-2">
-          <PrimaryButton onClick={() => window.print()}>
+          <PrimaryButton onClick={() => {
+            const clsName = classFilter === "all" ? "كل الفصول" : (classes.find((c) => c.id === classFilter)?.name || "—");
+            const rowsHtml = rows.map((s) => `
+              <tr>
+                <td>${s.name}</td>
+                <td>${s.grade}</td>
+                <td style="color:green;text-align:center">${s.present}</td>
+                <td style="color:red;text-align:center">${s.absent}</td>
+                <td style="text-align:center">${s.pct}%</td>
+                <td style="text-align:center">${
+                  s.fees?.type === "monthly"
+                    ? `${s.fees.amount?.toLocaleString()} ريال/شهر`
+                    : s.fees?.type === "installments"
+                      ? s.fees.installments?.map((i, idx) => `دفعة ${idx+1}: ${Number(i.amount).toLocaleString()} ريال ${i.paid ? "✅" : "⏳"}`).join("<br/>")
+                      : "—"
+                }</td>
+              </tr>`).join("");
+            const withdrawnHtml = withdrawnScoped.length > 0 ? `
+              <h3 style="margin-top:24px">الطلاب المنسحبون</h3>
+              <table><thead><tr><th>الاسم</th><th>الفصل</th><th>تاريخ الانسحاب</th><th>السبب</th></tr></thead><tbody>
+              ${withdrawnScoped.map((s) => `<tr><td>${s.name}</td><td>${s.grade}</td><td>${s.withdrawalDate||"-"}</td><td>${s.withdrawalReason||"-"}</td></tr>`).join("")}
+              </tbody></table>` : "";
+            const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/>
+              <style>
+                body{font-family:Tajawal,Arial,sans-serif;padding:24px;direction:rtl}
+                h1{font-size:20px;margin-bottom:4px}
+                p{font-size:12px;color:#666;margin-bottom:16px}
+                table{width:100%;border-collapse:collapse;font-size:13px}
+                th{background:#F3E8FF;padding:8px;text-align:right;border:1px solid #ddd}
+                td{padding:8px;border:1px solid #ddd}
+                .summary{display:flex;gap:24px;margin-bottom:16px;font-size:13px}
+                .summary b{font-size:18px;display:block}
+                @media print{button{display:none}}
+              </style>
+              </head><body>
+              <button onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;background:#7C3AED;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px">🖨️ طباعة</button>
+              <h1>تقرير الحضور والغياب — ${clsName}</h1>
+              <p>الفترة من ${from} إلى ${to} | إجمالي الطلاب النشطين: ${rows.length} | المنسحبون: ${withdrawnScoped.length}</p>
+              <div class="summary">
+                <div><b style="color:green">${totalPresent}</b>إجمالي أيام الحضور</div>
+                <div><b style="color:red">${totalAbsent}</b>إجمالي أيام الغياب</div>
+                <div><b>${totalDays > 0 ? Math.round((totalPresent/totalDays)*100) : 0}%</b>نسبة الحضور الكلية</div>
+              </div>
+              <table><thead><tr><th>الاسم</th><th>الفصل</th><th>حضور</th><th>غياب</th><th>النسبة</th><th>الرسوم</th></tr></thead>
+              <tbody>${rowsHtml}</tbody></table>
+              ${withdrawnHtml}
+              </body></html>`;
+            const win = window.open("", "_blank");
+            if (win) { win.document.write(html); win.document.close(); }
+          }}>
             <span className="flex items-center gap-2"><Printer size={16} /> طباعة التقرير</span>
           </PrimaryButton>
         </div>
@@ -1333,8 +1437,224 @@ function AttendanceReportsPage({ data }) {
   );
 }
 
+const ALL_PERMISSIONS = [
+  { id: "attendance", label: "تسجيل الحضور والغياب", icon: "📋" },
+  { id: "homework",   label: "إدارة الواجبات",        icon: "📚" },
+  { id: "reports",    label: "التقارير اليومية",       icon: "📝" },
+  { id: "grades",     label: "الدرجات",                icon: "⭐" },
+  { id: "exams",      label: "الاختبارات",             icon: "📄" },
+  { id: "students",   label: "عرض قائمة الطلاب",      icon: "👧" },
+];
+
+function TeachersAdminPage({ data, updateData }) {
+  const teachers = data.teachers || [];
+  const classes = data.classes || [];
+  const defaultPerms = ALL_PERMISSIONS.map((p) => p.id);
+  const [form, setForm] = useState({ name: "", username: "", password: "", classIds: [], permissions: defaultPerms });
+
+  function toggleFormPerm(perm) {
+    setForm((f) => ({
+      ...f,
+      permissions: f.permissions.includes(perm)
+        ? f.permissions.filter((p) => p !== perm)
+        : [...f.permissions, perm],
+    }));
+  }
+
+  function toggleFormClass(classId) {
+    setForm((f) => ({
+      ...f,
+      classIds: f.classIds.includes(classId)
+        ? f.classIds.filter((c) => c !== classId)
+        : [...f.classIds, classId],
+    }));
+  }
+
+  function addTeacher(e) {
+    e.preventDefault();
+    if (!form.name.trim() || !form.username.trim() || !form.password.trim()) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      if (!next.teachers) next.teachers = [];
+      next.teachers.push({
+        id: "tch_" + Date.now(),
+        name: form.name.trim(),
+        username: form.username.trim(),
+        password: form.password,
+        classIds: form.classIds,
+        permissions: form.permissions,
+      });
+      return next;
+    });
+    setForm({ name: "", username: "", password: "", classIds: [], permissions: defaultPerms });
+  }
+
+  function removeTeacher(id) {
+    if (!confirm("هل تريد حذف هذه المعلمة؟")) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      next.teachers = (next.teachers || []).filter((t) => t.id !== id);
+      return next;
+    });
+  }
+
+  function toggleTeacherClass(teacherId, classId) {
+    updateData((d) => {
+      const next = structuredClone(d);
+      const teacher = (next.teachers || []).find((t) => t.id === teacherId);
+      if (!teacher) return next;
+      teacher.classIds = teacher.classIds.includes(classId)
+        ? teacher.classIds.filter((c) => c !== classId)
+        : [...teacher.classIds, classId];
+      return next;
+    });
+  }
+
+  function toggleTeacherPerm(teacherId, perm) {
+    updateData((d) => {
+      const next = structuredClone(d);
+      const teacher = (next.teachers || []).find((t) => t.id === teacherId);
+      if (!teacher) return next;
+      const perms = teacher.permissions || [];
+      teacher.permissions = perms.includes(perm)
+        ? perms.filter((p) => p !== perm)
+        : [...perms, perm];
+      return next;
+    });
+  }
+
+  function resetTeacherPassword(teacherId, newPass) {
+    if (!newPass.trim()) return;
+    updateData((d) => {
+      const next = structuredClone(d);
+      const teacher = (next.teachers || []).find((t) => t.id === teacherId);
+      if (teacher) teacher.password = newPass.trim();
+      return next;
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Add teacher form */}
+      <Card>
+        <CardTitle icon={GraduationCap}>إضافة معلمة جديدة</CardTitle>
+        <form onSubmit={addTeacher} className="flex flex-col gap-4">
+          <div className="grid sm:grid-cols-3 gap-x-4">
+            <Input label="اسم المعلمة" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input label="اسم المستخدم" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
+            <Input label="كلمة المرور" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+          </div>
+
+          <div>
+            <div className="text-sm font-bold mb-2" style={{ color: COLORS.text }}>الفصول المسموح بها</div>
+            <div className="flex flex-wrap gap-2">
+              {classes.length === 0 && <span className="text-xs" style={{ color: COLORS.sub }}>لا توجد فصول — أضف فصولاً أولاً من صفحة إدارة الفصول</span>}
+              {classes.map((c) => (
+                <label key={c.id} className="flex items-center gap-1 text-xs font-bold cursor-pointer px-3 py-1.5 rounded-full border transition" style={{ borderColor: form.classIds.includes(c.id) ? COLORS.purple : "#E5E7EB", background: form.classIds.includes(c.id) ? "#F3E8FF" : "white", color: form.classIds.includes(c.id) ? COLORS.purple : COLORS.sub }}>
+                  <input type="checkbox" className="hidden" checked={form.classIds.includes(c.id)} onChange={() => toggleFormClass(c.id)} />
+                  {form.classIds.includes(c.id) ? "✓ " : ""}{c.name} ({c.period === "evening" ? "م" : "ص"})
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-bold mb-2" style={{ color: COLORS.text }}>الصلاحيات</div>
+            <div className="flex flex-wrap gap-2">
+              {ALL_PERMISSIONS.map((p) => (
+                <label key={p.id} className="flex items-center gap-1 text-xs font-bold cursor-pointer px-3 py-1.5 rounded-full border transition" style={{ borderColor: form.permissions.includes(p.id) ? COLORS.green : "#E5E7EB", background: form.permissions.includes(p.id) ? COLORS.greenBg : "white", color: form.permissions.includes(p.id) ? COLORS.green : COLORS.sub }}>
+                  <input type="checkbox" className="hidden" checked={form.permissions.includes(p.id)} onChange={() => toggleFormPerm(p.id)} />
+                  {p.icon} {p.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div><PrimaryButton type="submit">إضافة المعلمة</PrimaryButton></div>
+        </form>
+      </Card>
+
+      {/* Teachers list */}
+      <Card>
+        <CardTitle icon={GraduationCap}>المعلمات الحاليات ({teachers.length})</CardTitle>
+        {teachers.length === 0 && <p className="text-sm" style={{ color: COLORS.sub }}>لا توجد معلمات مضافة بعد.</p>}
+        <div className="flex flex-col gap-4">
+          {teachers.map((t) => (
+            <div key={t.id} className="rounded-xl p-4 border" style={{ background: "#FDFCFF", borderColor: "#EDE8F7" }}>
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                <div>
+                  <div className="font-extrabold text-sm flex items-center gap-2" style={{ color: COLORS.text }}>
+                    🧑‍🏫 {t.name}
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: COLORS.sub }}>
+                    اسم الدخول: <b dir="ltr">{t.username}</b>
+                  </div>
+                </div>
+                <button onClick={() => removeTeacher(t.id)} className="p-2 rounded-lg" style={{ background: COLORS.redBg, color: COLORS.red }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              {/* Classes */}
+              <div className="mb-4">
+                <div className="text-xs font-extrabold mb-2" style={{ color: COLORS.sub }}>📌 الفصول المسموح بها:</div>
+                <div className="flex flex-wrap gap-2">
+                  {classes.length === 0 && <span className="text-xs" style={{ color: COLORS.sub }}>لا توجد فصول</span>}
+                  {classes.map((c) => (
+                    <label key={c.id} className="flex items-center gap-1 text-xs font-bold cursor-pointer px-3 py-1.5 rounded-full border transition" style={{ borderColor: (t.classIds || []).includes(c.id) ? COLORS.purple : "#E5E7EB", background: (t.classIds || []).includes(c.id) ? "#F3E8FF" : "white", color: (t.classIds || []).includes(c.id) ? COLORS.purple : COLORS.sub }}>
+                      <input type="checkbox" className="hidden" checked={(t.classIds || []).includes(c.id)} onChange={() => toggleTeacherClass(t.id, c.id)} />
+                      {(t.classIds || []).includes(c.id) ? "✓ " : ""}{c.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Permissions */}
+              <div className="mb-4">
+                <div className="text-xs font-extrabold mb-2" style={{ color: COLORS.sub }}>🔐 الصلاحيات:</div>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_PERMISSIONS.map((p) => {
+                    const has = (t.permissions || []).includes(p.id);
+                    return (
+                      <label key={p.id} className="flex items-center gap-1 text-xs font-bold cursor-pointer px-3 py-1.5 rounded-full border transition" style={{ borderColor: has ? COLORS.green : "#E5E7EB", background: has ? COLORS.greenBg : "white", color: has ? COLORS.green : COLORS.sub }}>
+                        <input type="checkbox" className="hidden" checked={has} onChange={() => toggleTeacherPerm(t.id, p.id)} />
+                        {p.icon} {p.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <ResetPasswordInline onSave={(p) => resetTeacherPassword(t.id, p)} />
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ResetPasswordInline({ onSave }) {
+  const [show, setShow] = useState(false);
+  const [val, setVal] = useState("");
+  if (!show) return (
+    <button onClick={() => setShow(true)} className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: "#F3F0FB", color: COLORS.purple }}>
+      <Key size={12} className="inline ml-1" /> تغيير كلمة المرور
+    </button>
+  );
+  return (
+    <div className="flex gap-2 items-center">
+      <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="كلمة المرور الجديدة" className="rounded-xl border px-3 py-1.5 text-xs outline-none flex-1" style={{ borderColor: "#E5E7EB" }} />
+      <button onClick={() => { onSave(val); setVal(""); setShow(false); }} className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: COLORS.purple }}>حفظ</button>
+      <button onClick={() => setShow(false)} className="text-xs px-2" style={{ color: COLORS.sub }}>إلغاء</button>
+    </div>
+  );
+}
+
 const PAGES = {
-  overview: OverviewPage, students: StudentsPage, classes: ClassesAdminPage, homework: HomeworkAdminPage,
+  overview: OverviewPage, students: StudentsPage, classes: ClassesAdminPage,
+  teachers: TeachersAdminPage, homework: HomeworkAdminPage,
   attendance: AttendanceAdminPage, attendanceReports: AttendanceReportsPage, reports: ReportsAdminPage, grades: GradesAdminPage,
   schedule: ScheduleAdminPage, exams: ExamsAdminPage, gallery: GalleryAdminPage,
   announcements: AnnouncementsAdminPage, messages: MessagesAdminPage, settings: SettingsAdminPage,
