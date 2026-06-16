@@ -1307,55 +1307,65 @@ function AttendanceReportsPage({ data }) {
         <div className="mt-2">
           <PrimaryButton onClick={() => {
             const clsName = classFilter === "all" ? "كل الفصول" : (classes.find((c) => c.id === classFilter)?.name || "—");
-            const rowsHtml = rows.map((s) => `
-              <tr>
-                <td>${s.name}</td>
-                <td>${s.grade}</td>
-                <td style="color:green;text-align:center">${s.present}</td>
-                <td style="color:red;text-align:center">${s.absent}</td>
-                <td style="text-align:center">${s.pct}%</td>
-                <td style="text-align:center">${
-                  s.fees?.type === "monthly"
-                    ? `${s.fees.amount?.toLocaleString()} ريال/شهر`
-                    : s.fees?.type === "installments"
-                      ? s.fees.installments?.map((i, idx) => `دفعة ${idx+1}: ${Number(i.amount).toLocaleString()} ريال ${i.paid ? "✅" : "⏳"}`).join("<br/>")
-                      : "—"
-                }</td>
-              </tr>`).join("");
+            const feesStr = (s) => {
+              if (!s.fees) return "—";
+              if (s.fees.type === "monthly") return `${(s.fees.amount || 0).toLocaleString()} ريال/شهر`;
+              if (s.fees.type === "installments") return (s.fees.installments || []).map((inst, i) => `دفعة ${i+1}: ${Number(inst.amount||0).toLocaleString()} ريال (${inst.date||"—"}) ${inst.paid ? "✅" : "⏳"}`).join(" | ");
+              return "—";
+            };
+            const rowsHtml = rows.map((s) => `<tr>
+              <td>${s.name}</td><td>${s.grade}</td>
+              <td style="color:green;text-align:center">${s.present}</td>
+              <td style="color:red;text-align:center">${s.absent}</td>
+              <td style="text-align:center;font-weight:bold">${s.pct}%</td>
+              <td style="font-size:12px">${feesStr(s)}</td>
+            </tr>`).join("");
             const withdrawnHtml = withdrawnScoped.length > 0 ? `
-              <h3 style="margin-top:24px">الطلاب المنسحبون</h3>
+              <h3 style="margin-top:32px;color:#C00">الطلاب المنسحبون (${withdrawnScoped.length})</h3>
               <table><thead><tr><th>الاسم</th><th>الفصل</th><th>تاريخ الانسحاب</th><th>السبب</th></tr></thead><tbody>
-              ${withdrawnScoped.map((s) => `<tr><td>${s.name}</td><td>${s.grade}</td><td>${s.withdrawalDate||"-"}</td><td>${s.withdrawalReason||"-"}</td></tr>`).join("")}
+              ${withdrawnScoped.map((s) => `<tr><td>${s.name}</td><td>${s.grade}</td><td>${s.withdrawalDate||"—"}</td><td>${s.withdrawalReason||"—"}</td></tr>`).join("")}
               </tbody></table>` : "";
-            const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"/>
+            const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/>
+              <title>تقرير الحضور — ${clsName}</title>
               <style>
-                body{font-family:Tajawal,Arial,sans-serif;padding:24px;direction:rtl}
-                h1{font-size:20px;margin-bottom:4px}
-                p{font-size:12px;color:#666;margin-bottom:16px}
-                table{width:100%;border-collapse:collapse;font-size:13px}
-                th{background:#F3E8FF;padding:8px;text-align:right;border:1px solid #ddd}
-                td{padding:8px;border:1px solid #ddd}
-                .summary{display:flex;gap:24px;margin-bottom:16px;font-size:13px}
-                .summary b{font-size:18px;display:block}
-                @media print{button{display:none}}
-              </style>
-              </head><body>
-              <button onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;background:#7C3AED;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px">🖨️ طباعة</button>
+                @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+                *{box-sizing:border-box}
+                body{font-family:Tajawal,Arial,sans-serif;padding:32px;direction:rtl;background:#fff;color:#1a1a2e}
+                h1{font-size:22px;font-weight:800;margin:0 0 4px}
+                .sub{font-size:12px;color:#666;margin-bottom:20px}
+                .summary{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+                .summary .box{background:#f8f7fc;border-radius:12px;padding:12px 20px;min-width:120px;text-align:center}
+                .summary .box b{display:block;font-size:24px;font-weight:800}
+                table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+                th{background:#3F1E63;color:white;padding:10px 8px;text-align:right;font-weight:700}
+                td{padding:9px 8px;border-bottom:1px solid #eee}
+                tr:nth-child(even) td{background:#faf9ff}
+                h3{font-size:16px;font-weight:800}
+                @media print{.no-print{display:none!important}body{padding:16px}}
+              </style></head><body>
+              <button class="no-print" onclick="window.print()" style="margin-bottom:20px;padding:10px 24px;background:#7C3AED;color:white;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700">🖨️ طباعة / حفظ PDF</button>
               <h1>تقرير الحضور والغياب — ${clsName}</h1>
-              <p>الفترة من ${from} إلى ${to} | إجمالي الطلاب النشطين: ${rows.length} | المنسحبون: ${withdrawnScoped.length}</p>
+              <div class="sub">الفترة: ${from} إلى ${to} | الطلاب النشطون: ${rows.length} | المنسحبون: ${withdrawnScoped.length}</div>
               <div class="summary">
-                <div><b style="color:green">${totalPresent}</b>إجمالي أيام الحضور</div>
-                <div><b style="color:red">${totalAbsent}</b>إجمالي أيام الغياب</div>
-                <div><b>${totalDays > 0 ? Math.round((totalPresent/totalDays)*100) : 0}%</b>نسبة الحضور الكلية</div>
+                <div class="box"><b style="color:#16a34a">${totalPresent}</b>أيام الحضور</div>
+                <div class="box"><b style="color:#dc2626">${totalAbsent}</b>أيام الغياب</div>
+                <div class="box"><b style="color:#7C3AED">${totalDays > 0 ? Math.round((totalPresent/totalDays)*100) : 0}%</b>نسبة الحضور</div>
+                <div class="box"><b style="color:#ea580c">${withdrawnScoped.length}</b>منسحبون</div>
               </div>
-              <table><thead><tr><th>الاسم</th><th>الفصل</th><th>حضور</th><th>غياب</th><th>النسبة</th><th>الرسوم</th></tr></thead>
+              <table><thead><tr><th>الاسم</th><th>الفصل</th><th>حضور</th><th>غياب</th><th>النسبة</th><th>الرسوم الدراسية</th></tr></thead>
               <tbody>${rowsHtml}</tbody></table>
               ${withdrawnHtml}
+              <div style="margin-top:32px;font-size:11px;color:#999;text-align:center">Elite International Schools — تقرير مُنشأ بتاريخ ${new Date().toLocaleDateString("ar-SA")}</div>
               </body></html>`;
-            const win = window.open("", "_blank");
-            if (win) { win.document.write(html); win.document.close(); }
+            const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.target = "_blank"; a.rel = "noopener";
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
           }}>
-            <span className="flex items-center gap-2"><Printer size={16} /> طباعة التقرير</span>
+            <span className="flex items-center gap-2"><Printer size={16} /> طباعة / تصدير التقرير</span>
           </PrimaryButton>
         </div>
       </Card>
@@ -1383,14 +1393,15 @@ function AttendanceReportsPage({ data }) {
               <tr style={{ color: COLORS.sub }}>
                 <th className="text-right py-2 font-bold">الطالب</th>
                 <th className="text-right py-2 font-bold">الفصل</th>
-                <th className="text-center py-2 font-bold">أيام الحضور</th>
-                <th className="text-center py-2 font-bold">أيام الغياب</th>
-                <th className="text-center py-2 font-bold">نسبة الحضور</th>
+                <th className="text-center py-2 font-bold">حضور</th>
+                <th className="text-center py-2 font-bold">غياب</th>
+                <th className="text-center py-2 font-bold">النسبة</th>
+                <th className="text-right py-2 font-bold">الرسوم</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-4" style={{ color: COLORS.sub }}>لا يوجد طلاب في هذا النطاق.</td></tr>
+                <tr><td colSpan={6} className="text-center py-4" style={{ color: COLORS.sub }}>لا يوجد طلاب في هذا النطاق.</td></tr>
               )}
               {rows.map((s) => (
                 <tr key={s.id} style={{ borderTop: "1px solid #F0EEF7" }}>
@@ -1399,6 +1410,12 @@ function AttendanceReportsPage({ data }) {
                   <td className="py-2 text-center" style={{ color: COLORS.green }}>{s.present}</td>
                   <td className="py-2 text-center" style={{ color: COLORS.red }}>{s.absent}</td>
                   <td className="py-2 text-center font-extrabold" style={{ color: COLORS.text }}>{s.pct}%</td>
+                  <td className="py-2 text-xs" style={{ color: COLORS.purple }}>
+                    {!s.fees ? "—" : s.fees.type === "monthly"
+                      ? `${(s.fees.amount||0).toLocaleString()} ريال/شهر`
+                      : `${(s.fees.installments||[]).length} دفعات | ${(s.fees.installments||[]).filter(i=>i.paid).length} مدفوعة`
+                    }
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1438,12 +1455,18 @@ function AttendanceReportsPage({ data }) {
 }
 
 const ALL_PERMISSIONS = [
-  { id: "attendance", label: "تسجيل الحضور والغياب", icon: "📋" },
-  { id: "homework",   label: "إدارة الواجبات",        icon: "📚" },
-  { id: "reports",    label: "التقارير اليومية",       icon: "📝" },
-  { id: "grades",     label: "الدرجات",                icon: "⭐" },
-  { id: "exams",      label: "الاختبارات",             icon: "📄" },
-  { id: "students",   label: "عرض قائمة الطلاب",      icon: "👧" },
+  { id: "attendance",        label: "تسجيل الحضور والغياب",    icon: "📋" },
+  { id: "homework",          label: "إدارة الواجبات",            icon: "📚" },
+  { id: "reports",           label: "التقارير اليومية",           icon: "📝" },
+  { id: "grades",            label: "الدرجات",                    icon: "⭐" },
+  { id: "exams",             label: "الاختبارات",                 icon: "📄" },
+  { id: "students",          label: "إدارة الطلاب وأولياء الأمور", icon: "👧" },
+  { id: "attendanceReports", label: "تقارير الحضور والطباعة",    icon: "📊" },
+  { id: "gallery",           label: "الأنشطة والصور",            icon: "🖼️" },
+  { id: "announcements",     label: "الإشعارات والإعلانات",      icon: "🔔" },
+  { id: "messages",          label: "الرسائل",                   icon: "💬" },
+  { id: "schedule",          label: "الجدول الدراسي",            icon: "🗓️" },
+  { id: "onlineClasses",     label: "الحصص الإلكترونية",         icon: "🎥" },
 ];
 
 function TeachersAdminPage({ data, updateData }) {
