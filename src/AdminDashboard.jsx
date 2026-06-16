@@ -28,11 +28,9 @@ const NAV_ITEMS = [
 
 const TITLES = Object.fromEntries(NAV_ITEMS.map((i) => [i.id, i.label]));
 
-function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen, teacherCtx }) {
-  const ctx = teacherCtx || { isTeacher: false, classIds: [], permissions: [] };
-  const visibleItems = ctx.isTeacher
-    ? NAV_ITEMS.filter((n) => ctx.permissions.includes(n.id) && !ADMIN_ONLY_PAGES.has(n.id))
-    : NAV_ITEMS;
+function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen, teacherCtx, visibleNavItems }) {
+  const ctx = teacherCtx || { isTeacher: false, teacherName: "" };
+  const items = visibleNavItems || NAV_ITEMS;
 
   return (
     <>
@@ -52,7 +50,7 @@ function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen, teach
           }
         </div>
         <nav className="flex-1 overflow-y-auto py-2 px-3 flex flex-col gap-1">
-          {visibleItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isActive = active === item.id;
             return (
@@ -107,7 +105,7 @@ function useTeacherStudents(data, teacherCtx) {
   return data.students.filter((s) => ctx.classIds.includes(s.classId));
 }
 
-// Class filter selector — shown in every page when teacher is logged in
+// Class filter selector — shown in every page for both admin and teacher
 function ClassFilterBar({ classes, classFilter, setClassFilter }) {
   if (!classes || classes.length === 0) return null;
   return (
@@ -128,6 +126,13 @@ function ClassFilterBar({ classes, classFilter, setClassFilter }) {
       ))}
     </div>
   );
+}
+
+// Helper: get the right class list for a user (all for admin, filtered for teacher)
+function useMyClasses(data, ctx) {
+  const allClasses = data.classes || [];
+  if (!ctx || !ctx.isTeacher) return allClasses;
+  return allClasses.filter((c) => ctx.classIds.includes(c.id));
 }
 
 
@@ -190,7 +195,7 @@ function OverviewPage({ data }) {
 function StudentsPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const allStudents = useTeacherStudents(data, ctx);
-  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const myClasses = useMyClasses(data, ctx);
   const [classFilter, setClassFilter] = useState("all");
   const visibleStudents = classFilter === "all" ? allStudents : allStudents.filter((s) => s.classId === classFilter);
   const [showForm, setShowForm] = useState(false);
@@ -472,7 +477,7 @@ function StudentsPage({ data, updateData, teacherCtx }) {
 function HomeworkAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const myStudents = useTeacherStudents(data, ctx);
-  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const myClasses = useMyClasses(data, ctx);
   const [classFilter, setClassFilter] = useState("all");
   const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
   const [form, setForm] = useState({ studentId: myStudents[0]?.id || "", subject: "", title: "", due: "", fileUrl: "", videoUrl: "" });
@@ -557,7 +562,7 @@ function HomeworkAdminPage({ data, updateData, teacherCtx }) {
 function AttendanceAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const allClasses = data.classes || [];
-  const classes = ctx.isTeacher ? allClasses.filter((c) => ctx.classIds.includes(c.id)) : allClasses;
+  const classes = useMyClasses(data, ctx);
   const classMap = Object.fromEntries(classes.map((c) => [c.id, c]));
   const activeStudents = useTeacherStudents(data, ctx).filter((s) => s.status !== "withdrawn");
 
@@ -654,7 +659,7 @@ function AttendanceAdminPage({ data, updateData, teacherCtx }) {
 function ReportsAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const myStudents = useTeacherStudents(data, ctx);
-  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const myClasses = useMyClasses(data, ctx);
   const [classFilter, setClassFilter] = useState("all");
   const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
   const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
@@ -735,7 +740,7 @@ function ReportsAdminPage({ data, updateData, teacherCtx }) {
 function GradesAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const myStudents = useTeacherStudents(data, ctx);
-  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const myClasses = useMyClasses(data, ctx);
   const [classFilter, setClassFilter] = useState("all");
   const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
   const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
@@ -812,7 +817,7 @@ function ScheduleAdminPage({ data, updateData }) {
 function ExamsAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const myStudents = useTeacherStudents(data, ctx);
-  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const myClasses = useMyClasses(data, ctx);
   const [classFilter, setClassFilter] = useState("all");
   const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
   const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
@@ -1059,8 +1064,13 @@ function AnnouncementsAdminPage({ data, updateData }) {
   );
 }
 
-function MessagesAdminPage({ data, updateData }) {
-  const [studentId, setStudentId] = useState(data.students[0]?.id || "");
+function MessagesAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = useMyClasses(data, ctx);
+  const [classFilter, setClassFilter] = useState("all");
+  const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
+  const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
   const [text, setText] = useState("");
   const msgs = data.messages[studentId] || [];
 
@@ -1078,8 +1088,9 @@ function MessagesAdminPage({ data, updateData }) {
   return (
     <Card className="flex flex-col" style={{ minHeight: 420 }}>
       <CardTitle icon={MessageCircle}>الرسائل مع أولياء الأمور</CardTitle>
+      <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
       <Select label="اختر الطالب / ولي الأمر" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-        {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+        {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
       </Select>
       <div className="flex-1 flex flex-col gap-3 mb-4 overflow-y-auto max-h-72">
         {msgs.map((m, i) => {
@@ -1343,8 +1354,7 @@ function Bar({ label, value, total, color, bg }) {
 
 function AttendanceReportsPage({ data, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
-  const allClasses = data.classes || [];
-  const classes = ctx.isTeacher ? allClasses.filter((c) => ctx.classIds.includes(c.id)) : allClasses;
+  const classes = useMyClasses(data, ctx);
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
   const todayStr = today.toISOString().slice(0, 10);
@@ -1778,25 +1788,31 @@ const ADMIN_ONLY_PAGES = new Set(["classes", "teachers", "overview"]);
 
 export default function AdminDashboard({ data, updateData, onLogout, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [], permissions: [] };
-  // For teachers: start on their first allowed page
-  const firstPage = ctx.isTeacher
-    ? (NAV_ITEMS.find((n) => ctx.permissions.includes(n.id) && !ADMIN_ONLY_PAGES.has(n.id))?.id || "attendance")
-    : "overview";
-  const [active, setActive] = useState(firstPage);
+
+  // Get visible nav items for this user
+  const visibleNavItems = ctx.isTeacher
+    ? NAV_ITEMS.filter((n) => ctx.permissions.includes(n.id) && !ADMIN_ONLY_PAGES.has(n.id))
+    : NAV_ITEMS;
+
+  const firstAllowedPage = visibleNavItems[0]?.id || "attendance";
+  const [active, setActive] = useState(firstAllowedPage);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const Page = PAGES[active];
+  // If active page is not in visibleNavItems (e.g. permissions changed), reset to first allowed
+  const safeActive = visibleNavItems.find((n) => n.id === active) ? active : firstAllowedPage;
+
+  const Page = PAGES[safeActive] || PAGES["overview"];
 
   return (
     <div className="min-h-screen flex" dir="rtl" style={{ background: COLORS.bg }}>
       <Sidebar
-        active={active} setActive={setActive} onLogout={onLogout}
+        active={safeActive} setActive={setActive} onLogout={onLogout}
         mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}
-        teacherCtx={ctx}
+        teacherCtx={ctx} visibleNavItems={visibleNavItems}
       />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
         <div className="no-print">
-          <TopBar title={TITLES[active]} onMenu={() => setMobileOpen(true)} teacherCtx={ctx} />
+          <TopBar title={TITLES[safeActive] || ""} onMenu={() => setMobileOpen(true)} teacherCtx={ctx} />
         </div>
         <Page data={data} updateData={updateData} teacherCtx={ctx} />
       </main>
