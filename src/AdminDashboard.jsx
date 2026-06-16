@@ -28,7 +28,12 @@ const NAV_ITEMS = [
 
 const TITLES = Object.fromEntries(NAV_ITEMS.map((i) => [i.id, i.label]));
 
-function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen }) {
+function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [], permissions: [] };
+  const visibleItems = ctx.isTeacher
+    ? NAV_ITEMS.filter((n) => ctx.permissions.includes(n.id) && !ADMIN_ONLY_PAGES.has(n.id))
+    : NAV_ITEMS;
+
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setMobileOpen(false)} />}
@@ -41,10 +46,13 @@ function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen }) {
           <Logo light />
         </div>
         <div className="px-5 py-3 text-xs" style={{ color: "#D8CCF2" }}>
-          لوحة <span className="font-extrabold text-white">الإدارة</span>
+          {ctx.isTeacher
+            ? <span>🧑‍🏫 <span className="font-extrabold text-white">{ctx.teacherName}</span></span>
+            : <span>لوحة <span className="font-extrabold text-white">الإدارة</span></span>
+          }
         </div>
         <nav className="flex-1 overflow-y-auto py-2 px-3 flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = active === item.id;
             return (
@@ -71,7 +79,8 @@ function Sidebar({ active, setActive, onLogout, mobileOpen, setMobileOpen }) {
   );
 }
 
-function TopBar({ title, onMenu }) {
+function TopBar({ title, onMenu, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, teacherName: "" };
   return (
     <div className="flex items-center justify-between mb-6">
       <button onClick={onMenu} className="md:hidden p-2 rounded-lg bg-white shadow">
@@ -79,12 +88,48 @@ function TopBar({ title, onMenu }) {
       </button>
       <h1 className="text-xl font-extrabold" style={{ color: COLORS.text }}>{title}</h1>
       <div className="hidden sm:flex items-center gap-2 bg-white rounded-full pl-4 pr-1 py-1 shadow">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ background: "linear-gradient(135deg,#A78BFA,#5B2A86)" }}>أ</div>
-        <div className="text-xs font-bold" style={{ color: COLORS.text }}>إدارة المدرسة</div>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ background: "linear-gradient(135deg,#A78BFA,#5B2A86)" }}>
+          {ctx.isTeacher ? "م" : "أ"}
+        </div>
+        <div className="text-xs font-bold" style={{ color: COLORS.text }}>
+          {ctx.isTeacher ? ctx.teacherName : "إدارة المدرسة"}
+        </div>
       </div>
     </div>
   );
 }
+
+// ─── Teacher context helpers ───────────────────────────────────────────────
+// Returns only students visible to the current user (all for admin, filtered for teacher)
+function useTeacherStudents(data, teacherCtx) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  if (!ctx.isTeacher) return data.students;
+  return data.students.filter((s) => ctx.classIds.includes(s.classId));
+}
+
+// Class filter selector — shown in every page when teacher is logged in
+function ClassFilterBar({ classes, classFilter, setClassFilter }) {
+  if (!classes || classes.length === 0) return null;
+  return (
+    <div className="flex gap-2 mb-4 flex-wrap items-center">
+      <span className="text-xs font-extrabold" style={{ color: COLORS.sub }}>🔍 الفصل:</span>
+      {[{ id: "all", name: "الكل" }, ...classes].map((c) => (
+        <button
+          key={c.id}
+          onClick={() => setClassFilter(c.id)}
+          className="px-3 py-1.5 rounded-full text-xs font-extrabold transition"
+          style={{
+            background: classFilter === c.id ? "linear-gradient(90deg,#7C3AED,#5B2A86)" : "#F0EEF7",
+            color: classFilter === c.id ? "white" : COLORS.text,
+          }}
+        >
+          {c.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 
 function StatCard({ icon: Icon, label, value, color, bg }) {
   return (
@@ -142,7 +187,12 @@ function OverviewPage({ data }) {
   );
 }
 
-function StudentsPage({ data, updateData }) {
+function StudentsPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const allStudents = useTeacherStudents(data, ctx);
+  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const [classFilter, setClassFilter] = useState("all");
+  const visibleStudents = classFilter === "all" ? allStudents : allStudents.filter((s) => s.classId === classFilter);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "", classId: "", nationalId: "", birthDate: "", bloodType: "O+",
@@ -248,10 +298,14 @@ function StudentsPage({ data, updateData }) {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-extrabold text-lg" style={{ color: COLORS.text }}>الطلاب وأولياء الأمور</h2>
-        <PrimaryButton onClick={() => setShowForm((v) => !v)}>
-          <span className="flex items-center gap-2"><Plus size={16} /> إضافة طالب جديد</span>
-        </PrimaryButton>
+        {!ctx.isTeacher && (
+          <PrimaryButton onClick={() => setShowForm((v) => !v)}>
+            <span className="flex items-center gap-2"><Plus size={16} /> إضافة طالب جديد</span>
+          </PrimaryButton>
+        )}
       </div>
+
+      <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
 
       {showForm && (
         <Card>
@@ -327,7 +381,10 @@ function StudentsPage({ data, updateData }) {
 
       <Card>
         <div className="flex flex-col gap-3">
-          {data.students.map((s) => {
+          {visibleStudents.length === 0 && (
+            <p className="text-sm text-center py-6" style={{ color: COLORS.sub }}>لا يوجد طلاب في هذا الفصل.</p>
+          )}
+          {visibleStudents.map((s) => {
             const parent = data.users.parents.find((p) => p.studentId === s.id);
             return (
               <div key={s.id} className="flex items-center justify-between flex-wrap gap-3 rounded-xl px-4 py-3" style={{ background: "#F8F7FC" }}>
@@ -357,21 +414,25 @@ function StudentsPage({ data, updateData }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button onClick={() => setResetTarget(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#F3F0FB", color: COLORS.purple }}>
-                    <Key size={14} /> إعادة تعيين كلمة المرور
-                  </button>
-                  {s.status === "withdrawn" ? (
-                    <button onClick={() => reactivateStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.greenBg, color: COLORS.green }}>
-                      <RotateCcw size={14} /> إلغاء الانسحاب
-                    </button>
-                  ) : (
-                    <button onClick={() => { setWithdrawTarget(s.id); setWithdrawForm({ date: new Date().toISOString().slice(0, 10), reason: "" }); }} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.orangeBg, color: COLORS.orange }}>
-                      <UserX size={14} /> تسجيل انسحاب
-                    </button>
+                  {!ctx.isTeacher && (
+                    <>
+                      <button onClick={() => setResetTarget(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#F3F0FB", color: COLORS.purple }}>
+                        <Key size={14} /> إعادة تعيين كلمة المرور
+                      </button>
+                      {s.status === "withdrawn" ? (
+                        <button onClick={() => reactivateStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.greenBg, color: COLORS.green }}>
+                          <RotateCcw size={14} /> إلغاء الانسحاب
+                        </button>
+                      ) : (
+                        <button onClick={() => { setWithdrawTarget(s.id); setWithdrawForm({ date: new Date().toISOString().slice(0, 10), reason: "" }); }} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.orangeBg, color: COLORS.orange }}>
+                          <UserX size={14} /> تسجيل انسحاب
+                        </button>
+                      )}
+                      <button onClick={() => removeStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.redBg, color: COLORS.red }}>
+                        <Trash2 size={14} /> حذف
+                      </button>
+                    </>
                   )}
-                  <button onClick={() => removeStudent(s.id)} className="flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: COLORS.redBg, color: COLORS.red }}>
-                    <Trash2 size={14} /> حذف
-                  </button>
                 </div>
               </div>
             );
@@ -408,8 +469,13 @@ function StudentsPage({ data, updateData }) {
   );
 }
 
-function HomeworkAdminPage({ data, updateData }) {
-  const [form, setForm] = useState({ studentId: data.students[0]?.id || "", subject: "", title: "", due: "", fileUrl: "", videoUrl: "" });
+function HomeworkAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const [classFilter, setClassFilter] = useState("all");
+  const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
+  const [form, setForm] = useState({ studentId: myStudents[0]?.id || "", subject: "", title: "", due: "", fileUrl: "", videoUrl: "" });
 
   function addHomework(e) {
     e.preventDefault();
@@ -441,11 +507,12 @@ function HomeworkAdminPage({ data, updateData }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
       <Card>
         <CardTitle icon={Plus}>إضافة واجب جديد</CardTitle>
         <form onSubmit={addHomework} className="grid sm:grid-cols-2 gap-x-4">
           <Select label="الطالب" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
-            {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+            {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
           </Select>
           <Input label="المادة" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="مثال: اللغة الإنجليزية" required />
           <Input label="عنوان الواجب" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="مثال: Letter A Worksheet" required />
@@ -487,10 +554,12 @@ function HomeworkAdminPage({ data, updateData }) {
   );
 }
 
-function AttendanceAdminPage({ data, updateData }) {
-  const classes = data.classes || [];
+function AttendanceAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const allClasses = data.classes || [];
+  const classes = ctx.isTeacher ? allClasses.filter((c) => ctx.classIds.includes(c.id)) : allClasses;
   const classMap = Object.fromEntries(classes.map((c) => [c.id, c]));
-  const activeStudents = data.students.filter((s) => s.status !== "withdrawn");
+  const activeStudents = useTeacherStudents(data, ctx).filter((s) => s.status !== "withdrawn");
 
   const [periodFilter, setPeriodFilter] = useState("all");
   const filteredStudents = activeStudents.filter((s) => {
@@ -582,8 +651,13 @@ function AttendanceAdminPage({ data, updateData }) {
   );
 }
 
-function ReportsAdminPage({ data, updateData }) {
-  const [studentId, setStudentId] = useState(data.students[0]?.id || "");
+function ReportsAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const [classFilter, setClassFilter] = useState("all");
+  const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
+  const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [behavior, setBehavior] = useState(5);
   const [participation, setParticipation] = useState(5);
@@ -622,9 +696,10 @@ function ReportsAdminPage({ data, updateData }) {
     <div className="flex flex-col gap-5">
       <Card>
         <CardTitle icon={Plus}>إضافة تقرير يومي</CardTitle>
+        <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
         <form onSubmit={submit} className="grid sm:grid-cols-2 gap-x-4">
           <Select label="الطالب" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-            {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+            {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
           </Select>
           <Input label="التاريخ" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <StarSelect label="السلوك" value={behavior} setValue={setBehavior} />
@@ -657,8 +732,13 @@ function ReportsAdminPage({ data, updateData }) {
   );
 }
 
-function GradesAdminPage({ data, updateData }) {
-  const [studentId, setStudentId] = useState(data.students[0]?.id || "");
+function GradesAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const [classFilter, setClassFilter] = useState("all");
+  const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
+  const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
   const grades = data.grades[studentId] || {};
 
   function update(subject, value) {
@@ -673,8 +753,9 @@ function GradesAdminPage({ data, updateData }) {
   return (
     <Card>
       <CardTitle icon={BarChart3}>تحديث المستوى التعليمي</CardTitle>
+      <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
       <Select label="الطالب" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-        {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+        {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
       </Select>
       <div className="grid sm:grid-cols-2 gap-4 mt-2">
         {["English","Math","Arabic","Science"].map((subj) => (
@@ -728,8 +809,13 @@ function ScheduleAdminPage({ data, updateData }) {
   );
 }
 
-function ExamsAdminPage({ data, updateData }) {
-  const [studentId, setStudentId] = useState(data.students[0]?.id || "");
+function ExamsAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = ctx.isTeacher ? (data.classes || []).filter((c) => ctx.classIds.includes(c.id)) : (data.classes || []);
+  const [classFilter, setClassFilter] = useState("all");
+  const filteredStudents = classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter);
+  const [studentId, setStudentId] = useState(myStudents[0]?.id || "");
   const [form, setForm] = useState({ subject: "", date: "", grade: "", note: "" });
 
   function add(e) {
@@ -756,8 +842,9 @@ function ExamsAdminPage({ data, updateData }) {
     <div className="flex flex-col gap-5">
       <Card>
         <CardTitle icon={Plus}>إضافة نتيجة اختبار</CardTitle>
+        <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
         <Select label="الطالب" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
-          {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+          {filteredStudents.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
         </Select>
         <form onSubmit={add} className="grid sm:grid-cols-2 gap-x-4 mt-2">
           <Input label="المادة" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required />
@@ -1254,8 +1341,10 @@ function Bar({ label, value, total, color, bg }) {
   );
 }
 
-function AttendanceReportsPage({ data }) {
-  const classes = data.classes || [];
+function AttendanceReportsPage({ data, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const allClasses = data.classes || [];
+  const classes = ctx.isTeacher ? allClasses.filter((c) => ctx.classIds.includes(c.id)) : allClasses;
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
   const todayStr = today.toISOString().slice(0, 10);
@@ -1264,7 +1353,8 @@ function AttendanceReportsPage({ data }) {
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(todayStr);
 
-  const scopedStudents = data.students.filter((s) => classFilter === "all" || s.classId === classFilter);
+  const baseStudents = useTeacherStudents(data, ctx);
+  const scopedStudents = baseStudents.filter((s) => classFilter === "all" || s.classId === classFilter);
   const activeScoped = scopedStudents.filter((s) => s.status !== "withdrawn");
   const withdrawnScoped = scopedStudents.filter((s) => s.status === "withdrawn");
 
@@ -1683,20 +1773,32 @@ const PAGES = {
   announcements: AnnouncementsAdminPage, messages: MessagesAdminPage, settings: SettingsAdminPage,
 };
 
-export default function AdminDashboard({ data, updateData, onLogout }) {
-  const [active, setActive] = useState("overview");
+// Pages hidden from teachers (admin-only)
+const ADMIN_ONLY_PAGES = new Set(["classes", "teachers", "overview"]);
+
+export default function AdminDashboard({ data, updateData, onLogout, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [], permissions: [] };
+  // For teachers: start on their first allowed page
+  const firstPage = ctx.isTeacher
+    ? (NAV_ITEMS.find((n) => ctx.permissions.includes(n.id) && !ADMIN_ONLY_PAGES.has(n.id))?.id || "attendance")
+    : "overview";
+  const [active, setActive] = useState(firstPage);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const Page = PAGES[active];
 
   return (
     <div className="min-h-screen flex" dir="rtl" style={{ background: COLORS.bg }}>
-      <Sidebar active={active} setActive={setActive} onLogout={onLogout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <Sidebar
+        active={active} setActive={setActive} onLogout={onLogout}
+        mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}
+        teacherCtx={ctx}
+      />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
         <div className="no-print">
-          <TopBar title={TITLES[active]} onMenu={() => setMobileOpen(true)} />
+          <TopBar title={TITLES[active]} onMenu={() => setMobileOpen(true)} teacherCtx={ctx} />
         </div>
-        <Page data={data} updateData={updateData} />
+        <Page data={data} updateData={updateData} teacherCtx={ctx} />
       </main>
     </div>
   );
