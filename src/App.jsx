@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import LoginScreen from "./LoginScreen.jsx";
-import TeacherLoginScreen from "./TeacherLoginScreen";
-import TeacherDashboard from "./TeacherDashboard.jsx";
+import TeacherLoginScreen from "./TeacherLoginScreen.tsx";
+import TeacherDashboard from "./TeacherDashboard.tsx";
 import ParentPortal from "./ParentPortal.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import { COLORS, Logo } from "./theme.jsx";
