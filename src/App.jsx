@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import LoginScreen from "./LoginScreen.jsx";
-import TeacherLoginScreen from "./TeacherLoginScreen.tsx";
-import TeacherDashboard from "./TeacherDashboard.tsx";
+import TeacherLoginScreen from "./TeacherLoginScreen.jsx";
 import ParentPortal from "./ParentPortal.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import { COLORS, Logo } from "./theme.jsx";
@@ -173,7 +172,14 @@ export default function App() {
   }
 
   if (session.role === "teacher") {
-    return <TeacherDashboard data={data} updateData={updateData} session={session} onLogout={handleLogout} />;
+    const teacherCtx = {
+      isTeacher: true,
+      teacherId: session.teacherId,
+      teacherName: session.teacherName,
+      classIds: session.classIds || [],
+      permissions: session.permissions || ["attendance", "students"],
+    };
+    return <AdminDashboard data={data} updateData={updateData} onLogout={handleLogout} teacherCtx={teacherCtx} />;
   }
 
   return (
