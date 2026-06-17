@@ -563,14 +563,17 @@ function AttendanceAdminPage({ data, updateData, teacherCtx }) {
   const ctx = teacherCtx || { isTeacher: false, classIds: [] };
   const allClasses = data.classes || [];
   const classes = useMyClasses(data, ctx);
-  const classMap = Object.fromEntries(classes.map((c) => [c.id, c]));
+  const classMap = Object.fromEntries((data.classes || []).map((c) => [c.id, c]));
   const activeStudents = useTeacherStudents(data, ctx).filter((s) => s.status !== "withdrawn");
 
+  const [classFilter, setClassFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("all");
+
   const filteredStudents = activeStudents.filter((s) => {
-    if (periodFilter === "all") return true;
     const cls = classMap[s.classId];
-    return cls && cls.period === periodFilter;
+    if (classFilter !== "all" && s.classId !== classFilter) return false;
+    if (periodFilter !== "all") return cls && cls.period === periodFilter;
+    return true;
   });
 
   const [studentId, setStudentId] = useState(filteredStudents[0]?.id || activeStudents[0]?.id || "");
@@ -581,7 +584,7 @@ function AttendanceAdminPage({ data, updateData, teacherCtx }) {
     if (!filteredStudents.find((s) => s.id === studentId)) {
       setStudentId(filteredStudents[0]?.id || "");
     }
-  }, [periodFilter]);
+  }, [periodFilter, classFilter]);
 
   function record(e) {
     e.preventDefault();
@@ -600,6 +603,7 @@ function AttendanceAdminPage({ data, updateData, teacherCtx }) {
     <div className="flex flex-col gap-5">
       <Card>
         <CardTitle icon={ClipboardCheck}>تسجيل حضور / غياب</CardTitle>
+        <ClassFilterBar classes={classes} classFilter={classFilter} setClassFilter={setClassFilter} />
         <div className="flex gap-2 mb-4 flex-wrap">
           {[
             { key: "all", label: "الكل" },
@@ -881,7 +885,18 @@ function ExamsAdminPage({ data, updateData, teacherCtx }) {
   );
 }
 
-function GalleryAdminPage({ data, updateData }) {
+function GalleryAdminPage({ data, updateData, teacherCtx }) {
+  const ctx = teacherCtx || { isTeacher: false, classIds: [] };
+  const myStudents = useTeacherStudents(data, ctx);
+  const myClasses = useMyClasses(data, ctx);
+  const [classFilter, setClassFilter] = useState("all");
+
+  // Filter gallery albums to those for this teacher's students (or all for admin)
+  const myStudentIds = new Set(myStudents.map((s) => s.id));
+  const visibleGallery = (data.gallery || []).filter((g) =>
+    !g.studentId || myStudentIds.has(g.studentId) || !ctx.isTeacher
+  );
+
   const [form, setForm] = useState({ title: "", color: "purple", studentId: "" });
 
   function add(e) {
@@ -946,11 +961,12 @@ function GalleryAdminPage({ data, updateData }) {
     <div className="flex flex-col gap-5">
       <Card>
         <CardTitle icon={Plus}>إضافة ألبوم أنشطة</CardTitle>
+        <ClassFilterBar classes={myClasses} classFilter={classFilter} setClassFilter={setClassFilter} />
         <form onSubmit={add} className="grid sm:grid-cols-3 gap-x-4 items-end">
           <Input label="عنوان الألبوم" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           <Select label="مخصص لطالب (اختياري)" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
             <option value="">للجميع</option>
-            {data.students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
+            {(classFilter === "all" ? myStudents : myStudents.filter((s) => s.classId === classFilter)).map((s) => <option key={s.id} value={s.id}>{s.name} — {s.grade}</option>)}
           </Select>
           <Select label="اللون" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}>
             <option value="purple">بنفسجي</option>
@@ -965,7 +981,7 @@ function GalleryAdminPage({ data, updateData }) {
       </Card>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.gallery.map((g) => {
+        {visibleGallery.map((g) => {
           const owner = data.students.find((s) => s.id === g.studentId);
           return (
             <Card key={g.id} className="relative">
