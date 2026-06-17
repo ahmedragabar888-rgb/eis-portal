@@ -6,14 +6,21 @@ export default function TeacherLoginScreen({ data, onLogin, onBack }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const teachers = data?.teachers || [];
+
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
     const u = username.trim();
-    const teachers = data.teachers || [];
     const teacher = teachers.find((t) => t.username === u && t.password === password);
     if (teacher) {
-      onLogin({ role: "teacher", teacherId: teacher.id, teacherName: teacher.name, classIds: teacher.classIds || [], permissions: teacher.permissions || ["attendance", "students"] });
+      onLogin({
+        role: "teacher",
+        teacherId: teacher.id,
+        teacherName: teacher.name,
+        classIds: teacher.classIds || [],
+        permissions: teacher.permissions || ["attendance", "students"],
+      });
       return;
     }
     setError("اسم المستخدم أو كلمة المرور غير صحيحة");
@@ -28,7 +35,14 @@ export default function TeacherLoginScreen({ data, onLogin, onBack }) {
           </button>
           <div className="text-3xl mb-3">🧑‍🏫</div>
           <h1 className="text-2xl font-extrabold mb-1" style={{ color: COLORS.text }}>دخول المعلمات</h1>
-          <p className="text-sm mb-8" style={{ color: COLORS.sub }}>سجّلي دخولك للوصول إلى فصولك</p>
+          <p className="text-sm mb-8" style={{ color: COLORS.sub }}>
+            سجّلي دخولك للوصول إلى فصولك
+            {teachers.length === 0 && (
+              <span className="block mt-1 text-xs" style={{ color: COLORS.orange }}>
+                ⚠️ لا يوجد حسابات معلمات — أضف معلمة من لوحة الأدمن أولاً
+              </span>
+            )}
+          </p>
 
           <label className="block text-sm font-bold mb-2" style={{ color: COLORS.text }}>اسم المستخدم</label>
           <input
