@@ -79,6 +79,17 @@ export default function LoginScreen({ data, onLogin }) {
           </button>
 
           <p className="text-center text-xs mt-6" style={{ color: "#C4C4C4" }}>Elite International Schools © 2026</p>
+
+          <div className="text-center mt-3">
+            <button
+              type="button"
+              onClick={() => { window.location.hash = "teacher"; }}
+              className="text-xs"
+              style={{ color: "#E5E5E5", background: "none", border: "none", cursor: "pointer" }}
+            >
+              دخول المعلمات
+            </button>
+          </div>
         </form>
       </div>
 
